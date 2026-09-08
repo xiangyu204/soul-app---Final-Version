@@ -5,10 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.soul_android"
-
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.soul_android"

@@ -15,16 +15,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.soul_android.models.AppLanguage
-import com.example.soul_android.ui.components.LanguageSelector
-import com.example.soul_android.ui.components.SkillChip
-import com.example.soul_android.ui.components.SoulButton
-import com.example.soul_android.ui.components.SoulGreen
+import com.example.soul_android.ui.components.*
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -45,163 +44,102 @@ fun ProfileSetupScreen(
     var selectedLearnSkills by remember { mutableStateOf(setOf<Int>()) }
 
     val strings = when (language) {
-        AppLanguage.KOREAN -> ProfileSetupStrings(
-            title = "프로필 설정",
-            photo = "프로필 사진",
-            name = "이름",
-            bio = "자기소개",
-            bioHint = "자신을 소개해 주세요",
-            teachSkills = "가르칠 수 있는 스킬",
-            learnSkills = "배우고 싶은 스킬",
-            next = "다음",
-            skills = availableSkills
-        )
-        AppLanguage.ENGLISH -> ProfileSetupStrings(
-            title = "Profile Setup",
-            photo = "Profile Photo",
-            name = "Name",
-            bio = "Bio",
-            bioHint = "Tell us about yourself",
-            teachSkills = "Skills I can teach",
-            learnSkills = "Skills I want to learn",
-            next = "Next",
-            skills = availableSkillsEn
-        )
-        AppLanguage.CHINESE -> ProfileSetupStrings(
-            title = "个人资料设置",
-            photo = "个人头像",
-            name = "姓名",
-            bio = "自我介绍",
-            bioHint = "请介绍一下你自己",
-            teachSkills = "我可以教的技能",
-            learnSkills = "我想学的技能",
-            next = "下一步",
-            skills = availableSkillsCn
-        )
+        AppLanguage.KOREAN -> ProfileSetupStrings("프로필 설정", "프로필 사진", "이름", "자기소개", "자신을 소개해 주세요", "가르칠 수 있는 스킬", "배우고 싶은 스킬", "다음", availableSkills)
+        AppLanguage.ENGLISH -> ProfileSetupStrings("Profile Setup", "Profile Photo", "Name", "Bio", "Tell us about yourself", "Skills I can teach", "Skills I want to learn", "Next", availableSkillsEn)
+        AppLanguage.CHINESE -> ProfileSetupStrings("个人资料设置", "个人头像", "姓名", "自我介绍", "请介绍一下你自己", "我可以教的技能", "我想学的技能", "下一步", availableSkillsCn)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        BackgroundGalaxy()
 
-        // Language Selector
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            LanguageSelector(
-                currentLanguage = language,
-                expanded = languageMenuExpanded,
-                onExpandedChange = { languageMenuExpanded = it },
-                onLanguageSelected = { language = it }
-            )
-        }
-
-        Text(
-            text = strings.title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Profile Photo Placeholder
-        Box(
+        Column(
             modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFF0F0F0))
-                .border(1.dp, Color.LightGray, CircleShape)
-                .clickable { },
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(60.dp), tint = Color.Gray)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(SoulGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                LanguageSelector(
+                    currentLanguage = language,
+                    expanded = languageMenuExpanded,
+                    onExpandedChange = { languageMenuExpanded = it },
+                    onLanguageSelected = { language = it }
+                )
             }
-        }
-        
-        Text(
-            text = strings.photo,
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(top = 8.dp)
-        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+            BrandingSection(title = strings.title, subtitle = "Tell souls about you", titleSize = 22)
+            
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // Name
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text(strings.name) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bio
-        OutlinedTextField(
-            value = bio,
-            onValueChange = { bio = it },
-            label = { Text(strings.bio) },
-            placeholder = { Text(strings.bioHint) },
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Teach Skills
-        Text(text = strings.teachSkills, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Start))
-        FlowRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            strings.skills.forEachIndexed { index, skill ->
-                SkillChip(text = skill, selected = selectedTeachSkills.contains(index), onSelectedChange = {
-                    selectedTeachSkills = if (it) selectedTeachSkills + index else selectedTeachSkills - index
-                })
+            // Profile Photo with Glow
+            Box(contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(110.dp).blur(20.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape))
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                        .clickable { },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Person, null, modifier = Modifier.size(50.dp), tint = Color.White.copy(alpha = 0.5f))
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomEnd).size(30.dp).clip(CircleShape)
+                            .background(Brush.linearGradient(colors = listOf(Color(0xFF00D0D9), Color(0xFF7E57C2)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // Learn Skills
-        Text(text = strings.learnSkills, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Start))
-        FlowRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            strings.skills.forEachIndexed { index, skill ->
-                SkillChip(text = skill, selected = selectedLearnSkills.contains(index), onSelectedChange = {
-                    selectedLearnSkills = if (it) selectedLearnSkills + index else selectedLearnSkills - index
-                })
+            GlassPanel {
+                SoulTextField(value = name, onValueChange = { name = it }, placeholder = strings.name)
+                Spacer(modifier = Modifier.height(16.dp))
+                SoulTextField(value = bio, onValueChange = { bio = it }, placeholder = strings.bioHint, modifier = Modifier.height(100.dp))
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                SectionHeaderSmall(strings.teachSkills)
+                FlowRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    strings.skills.forEachIndexed { index, skill ->
+                        SkillChip(text = skill, selected = selectedTeachSkills.contains(index), onSelectedChange = {
+                            selectedTeachSkills = if (it) selectedTeachSkills + index else selectedTeachSkills - index
+                        })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SectionHeaderSmall(strings.learnSkills)
+                FlowRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    strings.skills.forEachIndexed { index, skill ->
+                        SkillChip(text = skill, selected = selectedLearnSkills.contains(index), onSelectedChange = {
+                            selectedLearnSkills = if (it) selectedLearnSkills + index else selectedLearnSkills - index
+                        })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                SoulButton(text = strings.next, onClick = onNextClick)
             }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        SoulButton(text = strings.next, onClick = onNextClick)
-
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
+@Composable
+fun SectionHeaderSmall(title: String) {
+    Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+}
+
 private data class ProfileSetupStrings(
-    val title: String,
-    val photo: String,
-    val name: String,
-    val bio: String,
-    val bioHint: String,
-    val teachSkills: String,
-    val learnSkills: String,
-    val next: String,
-    val skills: List<String>
+    val title: String, val photo: String, val name: String, val bio: String, val bioHint: String,
+    val teachSkills: String, val learnSkills: String, val next: String, val skills: List<String>
 )
