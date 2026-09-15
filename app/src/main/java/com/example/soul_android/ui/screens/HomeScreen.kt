@@ -34,6 +34,10 @@ import com.example.soul_android.data.DummyData
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.models.User
 import com.example.soul_android.ui.components.*
+import com.example.soul_android.ui.viewmodels.MatchViewModel
+import com.example.soul_android.ui.viewmodels.ProfileUiState
+import com.example.soul_android.ui.viewmodels.ProfileViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
@@ -45,15 +49,26 @@ fun HomeScreen(
     onNavigateToMatches: () -> Unit = {},
     onNavigateToChat: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
-    onUserClick: (String) -> Unit = {}
+    onUserClick: (String) -> Unit = {},
+    matchViewModel: MatchViewModel = viewModel(),
+    profileViewModel: ProfileViewModel = viewModel()
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
-    val user = DummyData.currentUser
+    
+    val matchState by matchViewModel.uiState.collectAsState()
+    val profileState by profileViewModel.uiState.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        matchViewModel.findMatches()
+        profileViewModel.fetchProfile("xiangyu")
+    }
+    
+    val displayName = (profileState as? ProfileUiState.Success)?.data?.name ?: "User"
     val strings = when (language) {
-        AppLanguage.KOREAN -> HomeStrings("안녕하세요, ${user.name}님!", "오늘의 추천 매칭입니다.", "추천 매칭", "매칭률", "홈", "탐색", "매칭", "채팅", "프로필")
-        AppLanguage.ENGLISH -> HomeStrings("Hello, ${user.name}!", "Today's recommended matches.", "Recommended Matches", "Match Rate", "Home", "Explore", "Matches", "Chat", "Profile")
-        AppLanguage.CHINESE -> HomeStrings("你好，${user.name}！", "今日推荐匹配。", "推荐匹配", "匹配率", "首页", "发现", "匹配", "聊天", "个人资料")
+        AppLanguage.KOREAN -> HomeStrings("안녕하세요, ${displayName}님!", "오늘의 추천 매칭입니다.", "추천 매칭", "매칭률", "홈", "탐색", "매칭", "채팅", "프로필")
+        AppLanguage.ENGLISH -> HomeStrings("Hello, ${displayName}!", "Today's recommended matches.", "Recommended Matches", "Match Rate", "Home", "Explore", "Matches", "Chat", "Profile")
+        AppLanguage.CHINESE -> HomeStrings("你好，${displayName}！", "今日推荐匹配。", "推荐匹配", "匹配率", "首页", "发现", "匹配", "聊天", "个人资料")
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

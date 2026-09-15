@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.sp
 import com.example.soul_android.R
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.ui.components.*
+import com.example.soul_android.ui.viewmodels.AuthViewModel
+import com.example.soul_android.ui.viewmodels.LoginResult
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 private data class LoginStrings(
@@ -30,14 +33,17 @@ private data class LoginStrings(
 @Composable
 fun LoginScreen(
     onSignUpClick: () -> Unit = {},
-    onLoginSuccess: () -> Unit = {}
+    onLoginSuccess: () -> Unit = {},
+    viewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
+
+    val loginResult by viewModel.loginResult.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val strings = when (language) {
         AppLanguage.KOREAN -> LoginStrings("로그인", "이메일", "비밀번호", "비밀번호를 잊으셨나요?", "계정이 없으신가요? 회원가입", "또는 다음으로 로그인")
@@ -45,62 +51,77 @@ fun LoginScreen(
         AppLanguage.CHINESE -> LoginStrings("登录", "邮箱", "密码", "忘记密码？", "还没有账号？注册", "或其他方式登录")
     }
 
-    if (isLoading) {
-        LaunchedEffect(Unit) {
-            delay(2000)
-            onLoginSuccess()
+    LaunchedEffect(loginResult) {
+        when (loginResult) {
+            is LoginResult.Success -> {
+                onLoginSuccess()
+            }
+            is LoginResult.Error -> {
+                snackbarHostState.showSnackbar((loginResult as LoginResult.Error).message)
+            }
+            else -> {}
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackgroundGalaxy()
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-                LanguageSelector(
-                    currentLanguage = language,
-                    expanded = languageMenuExpanded,
-                    onExpandedChange = { languageMenuExpanded = it },
-                    onLanguageSelected = { language = it }
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .statusBarsPadding()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                    LanguageSelector(
+                        currentLanguage = language,
+                        expanded = languageMenuExpanded,
+                        onExpandedChange = { languageMenuExpanded = it },
+                        onLanguageSelected = { language = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(0.3f))
+                BrandingSection()
+                Spacer(modifier = Modifier.weight(0.5f))
+
+                GlassLoginPanel(
+                    email = email,
+                    password = password,
+                    passwordVisible = passwordVisible,
+                    onEmailChange = { email = it },
+                    onPasswordChange = { password = it },
+                    onTogglePassword = { passwordVisible = !passwordVisible },
+                    strings = strings,
+                    onLoginClick = { 
+                        if (email.isNotBlank() && password.isNotBlank()) {
+                            viewModel.login(email, password)
+                        }
+                    }
                 )
+
+                Spacer(modifier = Modifier.height(24.dp))
+                SocialLoginSection(strings)
+                Spacer(modifier = Modifier.weight(0.2f))
+
+                TextButton(onClick = onSignUpClick) {
+                    Text(
+                        text = strings.signUp, 
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = TextStyle(letterSpacing = 1.sp, fontWeight = FontWeight.Light)
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
             }
-
-            Spacer(modifier = Modifier.weight(0.3f))
-            BrandingSection()
-            Spacer(modifier = Modifier.weight(0.5f))
-
-            GlassLoginPanel(
-                email = email,
-                password = password,
-                passwordVisible = passwordVisible,
-                onEmailChange = { email = it },
-                onPasswordChange = { password = it },
-                onTogglePassword = { passwordVisible = !passwordVisible },
-                strings = strings,
-                onLoginClick = { if (email.isNotBlank() && password.isNotBlank()) isLoading = true }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            SocialLoginSection(strings)
-            Spacer(modifier = Modifier.weight(0.2f))
-
-            TextButton(onClick = onSignUpClick) {
-                Text(
-                    text = strings.signUp, 
-                    color = Color.White.copy(alpha = 0.8f),
-                    style = TextStyle(letterSpacing = 1.sp, fontWeight = FontWeight.Light)
-                )
-            }
-            Spacer(modifier = Modifier.height(20.dp))
         }
 
-        if (isLoading) {
+        if (loginResult is LoginResult.Loading) {
             PlanetLoadingOverlay()
         }
     }

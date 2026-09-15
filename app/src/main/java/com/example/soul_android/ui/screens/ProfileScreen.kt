@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import com.example.soul_android.data.DummyData
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.ui.components.*
+import com.example.soul_android.ui.viewmodels.ProfileUiState
+import com.example.soul_android.ui.viewmodels.ProfileViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,12 +36,18 @@ fun ProfileScreen(
     onNavigateToChat: () -> Unit = {},
     onEditProfileClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    viewModel: ProfileViewModel = viewModel()
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
 
-    val user = DummyData.currentUser
+    val uiState by viewModel.uiState.collectAsState()
+
+    // 假设我们通过某种方式获取了当前登录的用户名，这里暂时硬编码为 "xiangyu"
+    LaunchedEffect(Unit) {
+        viewModel.fetchProfile("xiangyu")
+    }
 
     val strings = when (language) {
         AppLanguage.KOREAN -> ProfileStrings("프로필", "프로필 수정", "설정", "로그아웃", "가르칠 수 있는 스킬", "배우고 싶은 스킬", "홈", "탐색", "매칭", "채팅", "프로필")
@@ -67,65 +76,82 @@ fun ProfileScreen(
                 SoulNavigationBar(strings, onNavigateToHome, onNavigateToExplore, onNavigateToMatches, onNavigateToChat)
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Profile Header
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(colors = listOf(Color(0xFF00D0D9), Color(0xFF7E57C2))))
-                        .border(2.dp, Color.White.copy(alpha = 0.2f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.White)
+            when (val state = uiState) {
+                is ProfileUiState.Loading -> {
+                    PlanetLoadingOverlay()
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(text = user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(text = user.bio, fontSize = 14.sp, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 4.dp))
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Button(
-                        onClick = onEditProfileClick,
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-                    ) {
-                        Text(strings.edit, color = Color.White)
-                    }
-                    Button(
-                        onClick = onLogoutClick,
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252).copy(alpha = 0.2f)),
-                        border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.3f))
-                    ) {
-                        Text(strings.logout, color = Color(0xFFFF5252))
+                is ProfileUiState.Error -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(state.message, color = Color.White)
                     }
                 }
+                is ProfileUiState.Success -> {
+                    val user = state.data
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Profile Header
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(Brush.linearGradient(colors = listOf(Color(0xFF00D0D9), Color(0xFF7E57C2))))
+                                .border(2.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.White)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(text = user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(text = "@${user.username} • ${user.rating}", fontSize = 14.sp, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 4.dp))
+                        if (user.nationality.isNotEmpty()) {
+                            Text(text = user.nationality, fontSize = 12.sp, color = Color.White.copy(alpha = 0.4f))
+                        }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
 
-                // Skills
-                MyProfileSkillSection(strings.teach, user.teachSkills)
-                MyProfileSkillSection(strings.learn, user.learnSkills)
-                
-                Spacer(modifier = Modifier.height(80.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Button(
+                                onClick = onEditProfileClick,
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                            ) {
+                                Text(strings.edit, color = Color.White)
+                            }
+                            Button(
+                                onClick = onLogoutClick,
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252).copy(alpha = 0.2f)),
+                                border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.3f))
+                            ) {
+                                Text(strings.logout, color = Color(0xFFFF5252))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(40.dp))
+
+                        // Skills
+                        MyProfileSkillSection(strings.teach, user.teachSkills)
+                        MyProfileSkillSection(strings.learn, user.learnSkills)
+                        
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
             }
         }
     }
 }
+
 
 @Composable
 private fun SoulNavigationBar(strings: ProfileStrings, onHome: () -> Unit, onExplore: () -> Unit, onMatches: () -> Unit, onChat: () -> Unit) {
