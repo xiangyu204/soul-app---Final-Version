@@ -62,9 +62,10 @@ dependencies {
     // Icons
     implementation(libs.androidx.compose.material.icons.extended)
 
-    // Firebase
+    // Firebase & Google AI SDK
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.vertexai)
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
     // Testing
     testImplementation(libs.junit)

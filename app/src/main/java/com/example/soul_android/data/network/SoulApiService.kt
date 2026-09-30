@@ -39,6 +39,10 @@ data class ProfileResponse(
     val address: String?
 )
 
+data class AiGuideResponse(
+    val advice: String
+)
+
 // --- Match DTOs ---
 data class MatchUserResponse(
     val id: Long,
@@ -48,13 +52,9 @@ data class MatchUserResponse(
     val gender: String?,
     val nationality: String?,
     val avatar: String?,
-    val skillOffer: List<String>,
-    val skillWant: List<String>,
-    val timeSlot: String?,
-    val skillWantLevel: String?,
-    val skillOfferLevel: String?,
-    val averageRating: Double?,
-    val ratingCount: Int?
+    val skillOffer: String?, // 改为 String? 适配后端数据库存储格式
+    val skillWant: String?,  // 改为 String? 适配后端数据库存储格式
+    val averageRating: Double?
 )
 
 data class MatchHistoryResponse(
@@ -78,6 +78,21 @@ data class UserMatchProfileResponse(
     val histories: List<MatchHistoryResponse>
 )
 
+// --- Chat DTOs ---
+data class ChatMessageResponse(
+    val id: String,
+    val senderId: String,
+    val receiverId: String,
+    val content: String,
+    val timestamp: Long,
+    val isRead: Boolean
+)
+
+data class SendMessageRequest(
+    val receiverId: String,
+    val content: String
+)
+
 interface SoulApiService {
     @POST("api/login")
     suspend fun login(@Body request: LoginRequest): retrofit2.Response<LoginResponse>
@@ -86,27 +101,46 @@ interface SoulApiService {
     @GET("api/match/profile/{userId}")
     suspend fun getUserMatchProfile(@Path("userId") userId: Long): retrofit2.Response<UserMatchProfileResponse>
 
-    // 获取当前登录用户的资料 (用于个人资料页)
+    // 获取当前登录用户的资料 (对应您的 UserController.java @GetMapping("/profile"))
     @GET("api/user/profile")
     suspend fun getUserProfile(@Query("username") username: String): retrofit2.Response<ProfileResponse>
 
-    // 智能匹配接口
+    // 更新用户资料 (对应您的 UserController.java @PostMapping("/update"))
+    @POST("api/user/update")
+    suspend fun updateProfile(@Body user: ProfileResponse): retrofit2.Response<ProfileResponse>
+
+    // 智能匹配接口 (对应您的 MatchQueryController.java)
     @GET("api/match")
     suspend fun getMatches(
         @Query("haveSkill") haveSkill: String? = null,
         @Query("wantSkill") wantSkill: String? = null,
-        @Query("timeSlot") timeSlot: String? = null,
-        @Query("skillWantLevel") wantLevel: String? = null,
-        @Query("skillOfferLevel") offerLevel: String? = null,
-        @Query("limit") limit: Int = 5
+        @Query("limit") limit: Int = 12
     ): List<MatchUserResponse>
 
+    // --- Chat APIs (对应您的 ChatController.java) ---
+    @GET("api/chat/messages/{userId}")
+    suspend fun getChatMessages(@Path("userId") otherUserId: String): List<ChatMessageResponse>
+
+    @POST("api/chat/send")
+    suspend fun sendMessage(@Body request: SendMessageRequest): retrofit2.Response<ChatMessageResponse>
+
+    // --- AI Guide API ---
+    @GET("api/ai/guide")
+    suspend fun getAiGuide(@Query("username") username: String, @Query("targetLang") targetLang: String): retrofit2.Response<AiGuideResponse>
+
+    // --- AI Global Translation API ---
+    @POST("api/ai/translate")
+    suspend fun translateText(@Query("text") text: String, @Query("targetLang") targetLang: String): retrofit2.Response<AiGuideResponse>
+
     companion object {
-        private const val BASE_URL = "http://10.0.2.2:8080/"
+        // 确保端口与您的 Spring Boot (默认 8080) 一致
+        private const val BASE_URL = "http://10.0.2.2:8080/" 
 
         fun create(): SoulApiService {
             val logger = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
-            val client = OkHttpClient.Builder().addInterceptor(logger).build()
+            val client = OkHttpClient.Builder()
+                .addInterceptor(logger)
+                .build()
 
             return Retrofit.Builder()
                 .baseUrl(BASE_URL)

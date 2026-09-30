@@ -1,11 +1,14 @@
 package com.example.soul_android.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,8 @@ import com.example.soul_android.ui.components.SoulGreen
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit = {},
+    onCustomerServiceClick: () -> Unit = {},
+    onAiQuizClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
@@ -32,6 +37,8 @@ fun SettingsScreen(
             notifications = "알림",
             darkMode = "다크 모드",
             language = "언어",
+            aiCustomerService = "AI 고객센터",
+            aiQuiz = "AI 퀴즈 자동 출제",
             logout = "로그아웃"
         )
         AppLanguage.ENGLISH -> SettingsStrings(
@@ -39,6 +46,8 @@ fun SettingsScreen(
             notifications = "Notifications",
             darkMode = "Dark Mode",
             language = "Language",
+            aiCustomerService = "AI Customer Service",
+            aiQuiz = "AI Quiz Generator",
             logout = "Logout"
         )
         AppLanguage.CHINESE -> SettingsStrings(
@@ -46,6 +55,8 @@ fun SettingsScreen(
             notifications = "通知",
             darkMode = "深色模式",
             language = "语言",
+            aiCustomerService = "AI 客服中心",
+            aiQuiz = "AI 自动出题",
             logout = "登出"
         )
     }
@@ -106,6 +117,36 @@ fun SettingsScreen(
                 }
             )
 
+            // AI Customer Service Entry
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onCustomerServiceClick)
+            ) {
+                SettingsItem(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    title = strings.aiCustomerService,
+                    trailing = {
+                        Text(text = ">", color = SoulGreen, fontWeight = FontWeight.Bold)
+                    }
+                )
+            }
+
+            // AI Quiz Generator Entry
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onAiQuizClick)
+            ) {
+                SettingsItem(
+                    icon = Icons.Default.Quiz,
+                    title = strings.aiQuiz,
+                    trailing = {
+                        Text(text = ">", color = SoulGreen, fontWeight = FontWeight.Bold)
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             TextButton(
@@ -145,5 +186,7 @@ private data class SettingsStrings(
     val notifications: String,
     val darkMode: String,
     val language: String,
+    val aiCustomerService: String,
+    val aiQuiz: String,
     val logout: String
 )

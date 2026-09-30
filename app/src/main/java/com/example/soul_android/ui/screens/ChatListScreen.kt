@@ -32,18 +32,46 @@ fun ChatListScreen(
     onNavigateToHome: () -> Unit = {},
     onNavigateToExplore: () -> Unit = {},
     onNavigateToMatches: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    matchViewModel: com.example.soul_android.ui.viewmodels.MatchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
 
-    val strings = when (language) {
-        AppLanguage.KOREAN -> ChatListStrings("채팅", "홈", "탐색", "매칭", "채팅", "프로필", "마지막 메시지: ")
-        AppLanguage.ENGLISH -> ChatListStrings("Chat", "Home", "Explore", "Matches", "Chat", "Profile", "Last message: ")
-        AppLanguage.CHINESE -> ChatListStrings("聊天", "首页", "探索", "匹配", "聊天", "个人资料", "最后一条消息: ")
+    val matchState by matchViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        matchViewModel.findMatches()
     }
 
-    val activeChats = DummyData.users.take(4)
+    val strings = ChatListStrings(
+        title = "채팅",
+        home = "홈",
+        explore = "탐색",
+        matches = "매칭",
+        chat = "채팅",
+        profile = "프로필",
+        lastMsgPrefix = "마지막 메시지: "
+    )
+
+    val activeChats = remember(matchState) {
+        if (matchState is com.example.soul_android.ui.viewmodels.MatchUiState.Success) {
+            (matchState as com.example.soul_android.ui.viewmodels.MatchUiState.Success).users.map { resp ->
+                User(
+                    id = resp.username,
+                    name = resp.name,
+                    bio = resp.nationality ?: "",
+                    languages = listOf(),
+                    teachSkills = resp.skillOffer?.split(",")?.map { it.trim() } ?: listOf(),
+                    learnSkills = resp.skillWant?.split(",")?.map { it.trim() } ?: listOf(),
+                    matchRate = (resp.averageRating?.times(20) ?: 80.0).toInt(),
+                    isOnline = true
+                )
+            }
+        } else {
+            DummyData.users.take(4)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackgroundGalaxy()

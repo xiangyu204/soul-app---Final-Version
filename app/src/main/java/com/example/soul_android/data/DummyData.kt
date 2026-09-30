@@ -15,46 +15,18 @@ object DummyData {
     )
 
     val users = listOf(
-        User(
-            id = "sarah",
-            name = "Sarah",
-            bio = "English native speaker, loves hiking.",
-            languages = listOf("English", "Korean"),
-            teachSkills = listOf("영어", "사진"),
-            learnSkills = listOf("한국어"),
-            matchRate = 95,
-            isOnline = true
-        ),
-        User(
-            id = "chen",
-            name = "Chen",
-            bio = "Software engineer, tea lover.",
-            languages = listOf("Chinese", "English"),
-            teachSkills = listOf("중국어", "요리"),
-            learnSkills = listOf("영어"),
-            matchRate = 88,
-            isOnline = false
-        ),
-        User(
-            id = "alex",
-            name = "Alex",
-            bio = "Professional coder and part-time DJ.",
-            languages = listOf("English", "Spanish"),
-            teachSkills = listOf("Python", "프로그래밍"),
-            learnSkills = listOf("디자인"),
-            matchRate = 82,
-            isOnline = true
-        ),
-        User(
-            id = "victoria",
-            name = "Victoria",
-            bio = "UX designer and yoga enthusiast.",
-            languages = listOf("English", "French"),
-            teachSkills = listOf("디자인", "요가"),
-            learnSkills = listOf("Python"),
-            matchRate = 78,
-            isOnline = true
-        )
+        User(id = "sarah", name = "Sarah", bio = "English native speaker", languages = listOf("English"), teachSkills = listOf("영어"), learnSkills = listOf("한국어"), matchRate = 95, isOnline = true),
+        User(id = "chen", name = "Chen", bio = "Software engineer", languages = listOf("Chinese"), teachSkills = listOf("중국어"), learnSkills = listOf("영어"), matchRate = 88, isOnline = false),
+        User(id = "alex", name = "Alex", bio = "Professional coder", languages = listOf("English"), teachSkills = listOf("Python"), learnSkills = listOf("디자인"), matchRate = 82, isOnline = true),
+        User(id = "victoria", name = "Victoria", bio = "UX designer", languages = listOf("French"), teachSkills = listOf("디자인"), learnSkills = listOf("Python"), matchRate = 78, isOnline = true),
+        User(id = "minji", name = "Minji", bio = "K-pop lover", languages = listOf("Korean"), teachSkills = listOf("Dance"), learnSkills = listOf("English"), matchRate = 92, isOnline = true),
+        User(id = "john", name = "John", bio = "History buff", languages = listOf("English"), teachSkills = listOf("History"), learnSkills = listOf("Korean"), matchRate = 75, isOnline = true),
+        User(id = "yuki", name = "Yuki", bio = "Anime fan", languages = listOf("Japanese"), teachSkills = listOf("Japanese"), learnSkills = listOf("Design"), matchRate = 85, isOnline = true),
+        User(id = "leo", name = "Leo", bio = "Coffee enthusiast", languages = listOf("Italian"), teachSkills = listOf("Cooking"), learnSkills = listOf("Java"), matchRate = 80, isOnline = true),
+        User(id = "sophia", name = "Sophia", bio = "Nature photographer", languages = listOf("German"), teachSkills = listOf("Photo"), learnSkills = listOf("Python"), matchRate = 89, isOnline = true),
+        User(id = "ryan", name = "Ryan", bio = "Fitness coach", languages = listOf("English"), teachSkills = listOf("Gym"), learnSkills = listOf("Chinese"), matchRate = 83, isOnline = true),
+        User(id = "jiwon", name = "Jiwon", bio = "Game developer", languages = listOf("Korean"), teachSkills = listOf("Unity"), learnSkills = listOf("Music"), matchRate = 94, isOnline = true),
+        User(id = "emma", name = "Emma", bio = "Book worm", languages = listOf("English"), teachSkills = listOf("Literature"), learnSkills = listOf("German"), matchRate = 77, isOnline = true)
     )
 
     val matchRequests = listOf(

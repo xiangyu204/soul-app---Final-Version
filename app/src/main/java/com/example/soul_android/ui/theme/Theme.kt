@@ -39,7 +39,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun SOUL_AndroidTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Force light theme by default to avoid dark/black screen issues
     content: @Composable () -> Unit
 ) {
     // Force dark theme for "Soul App" look if you want, 

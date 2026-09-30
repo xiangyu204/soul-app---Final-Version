@@ -57,6 +57,8 @@ fun SOULApp() {
                 onNavigateToMatches = { navController.navigate("matches") },
                 onNavigateToChat = { navController.navigate("chat_list") },
                 onNavigateToProfile = { navController.navigate("profile_tab") },
+                onNavigateToCustomerService = { navController.navigate("customer_service") },
+                onNavigateToAiQuiz = { navController.navigate("ai_quiz") },
                 onUserClick = { userId -> navController.navigate("user_profile/$userId") }
             )
         }
@@ -78,7 +80,8 @@ fun SOULApp() {
                 onNavigateToHome = { navController.navigate("home") },
                 onNavigateToExplore = { navController.navigate("explore") },
                 onNavigateToChat = { navController.navigate("chat_list") },
-                onNavigateToProfile = { navController.navigate("profile_tab") }
+                onNavigateToProfile = { navController.navigate("profile_tab") },
+                onReviewClick = { uid -> navController.navigate("review/$uid") }
             )
         }
 
@@ -98,13 +101,19 @@ fun SOULApp() {
                 onNavigateToExplore = { navController.navigate("explore") },
                 onNavigateToMatches = { navController.navigate("matches") },
                 onNavigateToChat = { navController.navigate("chat_list") },
-                onEditProfileClick = { /* No Edit Screen yet, placeholder */ },
+                onEditProfileClick = { navController.navigate("edit_profile") },
                 onSettingsClick = { navController.navigate("settings") },
                 onLogoutClick = {
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("edit_profile") {
+            EditProfileScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -135,7 +144,8 @@ fun SOULApp() {
             ChatScreen(
                 userId = userId,
                 onBackClick = { navController.popBackStack() },
-                onScheduleClick = { uid -> navController.navigate("schedule/$uid") }
+                onScheduleClick = { uid -> navController.navigate("schedule/$uid") },
+                onCustomerServiceClick = { navController.navigate("customer_service") }
             )
         }
 
@@ -150,11 +160,25 @@ fun SOULApp() {
         composable("settings") {
             SettingsScreen(
                 onBackClick = { navController.popBackStack() },
+                onCustomerServiceClick = { navController.navigate("customer_service") },
+                onAiQuizClick = { navController.navigate("ai_quiz") },
                 onLogoutClick = {
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("customer_service") {
+            CustomerServiceScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable("ai_quiz") {
+            AiQuizScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

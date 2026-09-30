@@ -17,12 +17,19 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.soul_android.R
 import com.example.soul_android.data.DummyData
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.ui.components.*
+import com.example.soul_android.ui.theme.SoulCyan
+import com.example.soul_android.ui.theme.SoulPurple
 import com.example.soul_android.ui.viewmodels.ProfileUiState
 import com.example.soul_android.ui.viewmodels.ProfileViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,156 +47,194 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
-    var languageMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
 
-    // 假设我们通过某种方式获取了当前登录的用户名，这里暂时硬编码为 "xiangyu"
     LaunchedEffect(Unit) {
         viewModel.fetchProfile("xiangyu")
     }
 
-    val strings = when (language) {
-        AppLanguage.KOREAN -> ProfileStrings("프로필", "프로필 수정", "설정", "로그아웃", "가르칠 수 있는 스킬", "배우고 싶은 스킬", "홈", "탐색", "매칭", "채팅", "프로필")
-        AppLanguage.ENGLISH -> ProfileStrings("Profile", "Edit Profile", "Settings", "Logout", "Skills I Can Teach", "Skills I Want to Learn", "Home", "Explore", "Matches", "Chat", "Profile")
-        AppLanguage.CHINESE -> ProfileStrings("个人资料", "编辑资料", "设置", "登出", "我可以教授的技能", "我想学习的技能", "首页", "探索", "匹配", "聊天", "个人资料")
-    }
+    val strings = ProfileStrings(
+        title = "개인정보 페이지",
+        btnEdit = "정보 수정",
+        btnHome = "홈",
+        btnLogout = "로그아웃",
+        labelId = "아이디",
+        labelAge = "나이",
+        labelGender = "성별",
+        labelNationality = "국적",
+        labelPhone = "전화번호",
+        labelEmail = "이메일",
+        labelAddress = "주소",
+        labelTeach = "가르칠 수 있는 기술",
+        labelLearn = "배우고 싶은 기술",
+        labelTime = "학습 시간대",
+        labelProjects = "항목 / 상점",
+        welcome = "개인센터에 오신 것을 환영합니다"
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackgroundGalaxy()
 
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                    title = { BrandingSection(title = strings.title, subtitle = "My Universe", titleSize = 20) },
-                    actions = {
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(Icons.Default.Settings, "Settings", tint = Color.White)
-                        }
-                        LanguageSelector(currentLanguage = language, expanded = languageMenuExpanded, onExpandedChange = { languageMenuExpanded = it }, onLanguageSelected = { language = it })
-                    }
-                )
-            },
-            bottomBar = {
-                SoulNavigationBar(strings, onNavigateToHome, onNavigateToExplore, onNavigateToMatches, onNavigateToChat)
-            }
-        ) { padding ->
-            when (val state = uiState) {
-                is ProfileUiState.Loading -> {
-                    PlanetLoadingOverlay()
-                }
-                is ProfileUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(state.message, color = Color.White)
-                    }
-                }
-                is ProfileUiState.Success -> {
-                    val user = state.data
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                            .verticalScroll(rememberScrollState())
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Profile Header
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(CircleShape)
-                                .background(Brush.linearGradient(colors = listOf(Color(0xFF00D0D9), Color(0xFF7E57C2))))
-                                .border(2.dp, Color.White.copy(alpha = 0.2f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.White)
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Text(text = user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(text = "@${user.username} • ${user.rating}", fontSize = 14.sp, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 4.dp))
-                        if (user.nationality.isNotEmpty()) {
-                            Text(text = user.nationality, fontSize = 12.sp, color = Color.White.copy(alpha = 0.4f))
-                        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 100.dp)
+        ) {
+            // Header Title
+            Text(
+                text = strings.title,
+                style = TextStyle(
+                    brush = Brush.horizontalGradient(listOf(SoulPurple, SoulCyan)),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = 4.sp
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp)
+            )
 
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Button(
-                                onClick = onEditProfileClick,
-                                shape = RoundedCornerShape(28.dp),
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-                            ) {
-                                Text(strings.edit, color = Color.White)
-                            }
-                            Button(
-                                onClick = onLogoutClick,
-                                shape = RoundedCornerShape(28.dp),
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252).copy(alpha = 0.2f)),
-                                border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.3f))
-                            ) {
-                                Text(strings.logout, color = Color(0xFFFF5252))
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(40.dp))
-
-                        // Skills
-                        MyProfileSkillSection(strings.teach, user.teachSkills)
-                        MyProfileSkillSection(strings.learn, user.learnSkills)
-                        
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun SoulNavigationBar(strings: ProfileStrings, onHome: () -> Unit, onExplore: () -> Unit, onMatches: () -> Unit, onChat: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
-        color = Color.White.copy(alpha = 0.08f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
-    ) {
-        NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp, modifier = Modifier.height(80.dp)) {
-            val navItems = listOf(Triple(Icons.Default.Home, strings.home, false), Triple(Icons.Default.Search, strings.explore, false), Triple(Icons.Default.Favorite, strings.matches, false), Triple(Icons.AutoMirrored.Filled.Chat, strings.chat, false), Triple(Icons.Default.Person, strings.profile, true))
-            navItems.forEach { (icon, label, selected) ->
-                NavigationBarItem(selected = selected, onClick = { if(!selected) when(label) { strings.home -> onHome(); strings.explore -> onExplore(); strings.matches -> onMatches(); strings.chat -> onChat() } }, icon = { Icon(icon, null, modifier = Modifier.size(26.dp)) }, label = { Text(label, fontSize = 11.sp, fontWeight = if(selected) FontWeight.Bold else FontWeight.Normal) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary, unselectedIconColor = Color.White.copy(alpha = 0.5f), unselectedTextColor = Color.White.copy(alpha = 0.5f), indicatorColor = Color.Transparent))
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MyProfileSkillSection(title: String, skills: List<String>) {
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF00D0D9))
-        Spacer(modifier = Modifier.height(16.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            skills.forEach { skill ->
-                Surface(
-                    color = Color.White.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+            // Main Info Card - Using Project Standard GlassPanel
+            GlassPanel(
+                modifier = Modifier.padding(horizontal = 20.dp)
+            ) {
+                // Profile Header in Card
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = skill, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 14.sp, color = Color.White)
+                    Box(contentAlignment = Alignment.Center) {
+                        // Standard Soul Glow
+                        Box(modifier = Modifier.size(90.dp).blur(30.dp).background(SoulPurple.copy(alpha = 0.3f), CircleShape))
+                        Image(
+                            painter = painterResource(id = R.drawable.soul_logo), 
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(76.dp)
+                                .clip(CircleShape)
+                                .border(1.5.dp, SoulCyan.copy(alpha = 0.5f), CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Column {
+                        val user = (uiState as? ProfileUiState.Success)?.data
+                        Text(text = user?.name ?: "Loading...", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(text = "id:${user?.username ?: ""}", fontSize = 13.sp, color = SoulCyan.copy(alpha = 0.7f))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = strings.welcome, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                if (uiState is ProfileUiState.Success) {
+                    val user = (uiState as ProfileUiState.Success).data
+                    
+                    InfoRow(strings.labelId, user.username, strings.labelAge, user.age)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    InfoRow(strings.labelGender, user.gender, strings.labelNationality, user.nationality)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    InfoRow(strings.labelPhone, user.phone, "", "")
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    InfoRow(strings.labelEmail, user.email, "", "")
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    SkillInfoRow(strings.labelTeach, user.teachSkills.firstOrNull() ?: "-", user.skillOfferLevel)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    SkillInfoRow(strings.labelLearn, user.learnSkills.firstOrNull() ?: "-", user.skillWantLevel)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
+                    
+                    InfoRow(strings.labelTime, user.timeSlot, "", "")
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Standard Soul Buttons
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SoulButton(
+                        text = strings.btnEdit,
+                        onClick = onEditProfileClick,
+                        modifier = Modifier.weight(1f),
+                        containerColor = Color(0xFF4C6FFF)
+                    )
+                    
+                    Button(
+                        onClick = onNavigateToHome,
+                        modifier = Modifier.size(54.dp),
+                        shape = RoundedCornerShape(27.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(Icons.Default.Home, null, tint = Color.White)
+                    }
+                    
+                    SoulButton(
+                        text = strings.btnLogout,
+                        onClick = onLogoutClick,
+                        modifier = Modifier.weight(1f),
+                        containerColor = Color(0xFFE53935)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(label1: String, value1: String, label2: String, value2: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = label1, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(70.dp))
+                Text(text = value1, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+        if (label2.isNotEmpty()) {
+            Column(modifier = Modifier.weight(0.9f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = label2, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(40.dp))
+                    Text(text = value2, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SkillInfoRow(label: String, skill: String, level: String) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(text = label, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(100.dp))
+        Text(text = skill, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(modifier = Modifier.width(12.dp))
+        Surface(
+            color = SoulCyan.copy(alpha = 0.15f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(0.5.dp, SoulCyan.copy(alpha = 0.3f))
+        ) {
+            Text(
+                text = level,
+                fontSize = 10.sp,
+                color = SoulCyan,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            )
         }
     }
 }
 
 private data class ProfileStrings(
-    val title: String, val edit: String, val settings: String, val logout: String, val teach: String,
-    val learn: String, val home: String, val explore: String, val matches: String, val chat: String, val profile: String
+    val title: String, val btnEdit: String, val btnHome: String, val btnLogout: String,
+    val labelId: String, val labelAge: String, val labelGender: String, val labelNationality: String,
+    val labelPhone: String, val labelEmail: String, val labelAddress: String,
+    val labelTeach: String, val labelLearn: String, val labelTime: String, val labelProjects: String,
+    val welcome: String
 )
+

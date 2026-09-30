@@ -1,6 +1,8 @@
 package com.example.soul_android.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -9,17 +11,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soul_android.R
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.ui.components.*
 import com.example.soul_android.ui.viewmodels.AuthViewModel
 import com.example.soul_android.ui.viewmodels.LoginResult
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.delay
 
 private data class LoginStrings(
     val login: String,
@@ -27,7 +29,8 @@ private data class LoginStrings(
     val password: String,
     val forgot: String,
     val signUp: String,
-    val orLoginWith: String
+    val orLoginWith: String,
+    val rememberMe: String
 )
 
 @Composable
@@ -36,40 +39,161 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
     viewModel: AuthViewModel = viewModel()
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf(AppLanguage.KOREAN) }
-    var languageMenuExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // 登录信息统一保存在 soul_login_prefs
+    val prefs = remember {
+        context.getSharedPreferences(
+            "soul_login_prefs",
+            Context.MODE_PRIVATE
+        )
+    }
+
+    var email by remember {
+        mutableStateOf(
+            prefs.getString("saved_email", "") ?: ""
+        )
+    }
+
+    var password by remember {
+        mutableStateOf(
+            prefs.getString("saved_password", "") ?: ""
+        )
+    }
+
+    var rememberMe by remember {
+        mutableStateOf(
+            prefs.getBoolean("remember_me", false)
+        )
+    }
+
+    var passwordVisible by remember {
+        mutableStateOf(false)
+    }
+
+    var language by remember {
+        mutableStateOf(AppLanguage.KOREAN)
+    }
+
+    var languageMenuExpanded by remember {
+        mutableStateOf(false)
+    }
 
     val loginResult by viewModel.loginResult.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+
+    val snackbarHostState = remember {
+        SnackbarHostState()
+    }
 
     val strings = when (language) {
-        AppLanguage.KOREAN -> LoginStrings("로그인", "이메일", "비밀번호", "비밀번호를 잊으셨나요?", "계정이 없으신가요? 회원가입", "또는 다음으로 로그인")
-        AppLanguage.ENGLISH -> LoginStrings("Login", "Email", "Password", "Forgot your password?", "Don't have an account? Sign Up", "Or login with")
-        AppLanguage.CHINESE -> LoginStrings("登录", "邮箱", "密码", "忘记密码？", "还没有账号？注册", "或其他方式登录")
+        AppLanguage.KOREAN -> LoginStrings(
+            "로그인",
+            "이메일",
+            "비밀번호",
+            "비밀번호를 잊으셨나요?",
+            "계정이 없으신가요? 회원가입",
+            "또는 다음으로 로그인",
+            "아이디/비밀번호 기억"
+        )
+
+        AppLanguage.ENGLISH -> LoginStrings(
+            "Login",
+            "Email",
+            "Password",
+            "Forgot your password?",
+            "Don't have an account? Sign Up",
+            "Or login with",
+            "Remember me"
+        )
+
+        AppLanguage.CHINESE -> LoginStrings(
+            "登录",
+            "邮箱",
+            "密码",
+            "忘记密码？",
+            "还没有账号？注册",
+            "或其他方式登录",
+            "记住账号密码"
+        )
     }
 
     LaunchedEffect(loginResult) {
-        when (loginResult) {
+
+        when (val result = loginResult) {
+
             is LoginResult.Success -> {
+
+                // 保存当前登录用户
+                prefs.edit()
+                    .putString(
+                        "username",
+                        result.username
+                    )
+                    .putBoolean(
+                        "is_logged_in",
+                        true
+                    )
+                    .apply()
+
+                // 是否记住账号密码
+                if (rememberMe) {
+
+                    prefs.edit()
+                        .putString(
+                            "saved_email",
+                            email
+                        )
+                        .putString(
+                            "saved_password",
+                            password
+                        )
+                        .putBoolean(
+                            "remember_me",
+                            true
+                        )
+                        .apply()
+
+                } else {
+
+                    // 不要 clear()
+                    // 否则 username 和 is_logged_in 也会被删掉
+                    prefs.edit()
+                        .remove("saved_email")
+                        .remove("saved_password")
+                        .putBoolean(
+                            "remember_me",
+                            false
+                        )
+                        .apply()
+                }
+
                 onLoginSuccess()
             }
+
             is LoginResult.Error -> {
-                snackbarHostState.showSnackbar((loginResult as LoginResult.Error).message)
+
+                snackbarHostState.showSnackbar(
+                    result.message
+                )
             }
+
             else -> {}
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+
         BackgroundGalaxy()
 
         Scaffold(
             containerColor = Color.Transparent,
-            snackbarHost = { SnackbarHost(snackbarHostState) }
+            snackbarHost = {
+                SnackbarHost(snackbarHostState)
+            }
         ) { padding ->
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -78,76 +202,167 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+
                     LanguageSelector(
                         currentLanguage = language,
                         expanded = languageMenuExpanded,
-                        onExpandedChange = { languageMenuExpanded = it },
-                        onLanguageSelected = { language = it }
+                        onExpandedChange = {
+                            languageMenuExpanded = it
+                        },
+                        onLanguageSelected = {
+                            language = it
+                        }
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(0.3f))
+                Spacer(
+                    modifier = Modifier.weight(0.3f)
+                )
+
                 BrandingSection()
-                Spacer(modifier = Modifier.weight(0.5f))
+
+                Spacer(
+                    modifier = Modifier.weight(0.5f)
+                )
 
                 GlassLoginPanel(
                     email = email,
                     password = password,
                     passwordVisible = passwordVisible,
-                    onEmailChange = { email = it },
-                    onPasswordChange = { password = it },
-                    onTogglePassword = { passwordVisible = !passwordVisible },
+                    rememberMe = rememberMe,
+
+                    onEmailChange = {
+                        email = it
+                    },
+
+                    onPasswordChange = {
+                        password = it
+                    },
+
+                    onTogglePassword = {
+                        passwordVisible = !passwordVisible
+                    },
+
+                    onRememberMeChange = {
+                        rememberMe = it
+                    },
+
                     strings = strings,
-                    onLoginClick = { 
-                        if (email.isNotBlank() && password.isNotBlank()) {
-                            viewModel.login(email, password)
+
+                    onLoginClick = {
+
+                        if (
+                            email.isNotBlank()
+                            &&
+                            password.isNotBlank()
+                        ) {
+
+                            viewModel.login(
+                                email,
+                                password
+                            )
                         }
                     }
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-                SocialLoginSection(strings)
-                Spacer(modifier = Modifier.weight(0.2f))
+                Spacer(
+                    modifier = Modifier.height(24.dp)
+                )
 
-                TextButton(onClick = onSignUpClick) {
+                SocialLoginSection(
+                    strings
+                )
+
+                Spacer(
+                    modifier = Modifier.weight(0.2f)
+                )
+
+                TextButton(
+                    onClick = onSignUpClick
+                ) {
+
                     Text(
-                        text = strings.signUp, 
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = TextStyle(letterSpacing = 1.sp, fontWeight = FontWeight.Light)
+                        text = strings.signUp,
+                        color = Color.White.copy(
+                            alpha = 0.8f
+                        ),
+                        style = TextStyle(
+                            letterSpacing = 1.sp,
+                            fontWeight = FontWeight.Light
+                        )
                     )
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
             }
         }
 
-        if (loginResult is LoginResult.Loading) {
+        if (
+            loginResult is LoginResult.Loading
+        ) {
+
             PlanetLoadingOverlay()
         }
     }
 }
+
 
 @Composable
 private fun GlassLoginPanel(
     email: String,
     password: String,
     passwordVisible: Boolean,
+    rememberMe: Boolean,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
+    onRememberMeChange: (Boolean) -> Unit,
     strings: LoginStrings,
     onLoginClick: () -> Unit
 ) {
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(32.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(32.dp)),
-        color = Color.White.copy(alpha = 0.07f)
+            .clip(
+                RoundedCornerShape(32.dp)
+            )
+            .border(
+                1.dp,
+                Color.White.copy(
+                    alpha = 0.1f
+                ),
+                RoundedCornerShape(32.dp)
+            ),
+        color = Color.White.copy(
+            alpha = 0.07f
+        )
     ) {
-        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            SoulTextField(value = email, onValueChange = onEmailChange, placeholder = strings.email)
-            Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            SoulTextField(
+                value = email,
+                onValueChange = onEmailChange,
+                placeholder = strings.email
+            )
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+
             SoulTextField(
                 value = password,
                 onValueChange = onPasswordChange,
@@ -156,25 +371,106 @@ private fun GlassLoginPanel(
                 passwordVisible = passwordVisible,
                 onTogglePassword = onTogglePassword
             )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = {}) {
-                    Text(strings.forgot, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        onRememberMeChange(
+                            !rememberMe
+                        )
+                    }
+                ) {
+
+                    Checkbox(
+                        checked = rememberMe,
+                        onCheckedChange = onRememberMeChange,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = SoulGreen
+                        )
+                    )
+
+                    Text(
+                        text = strings.rememberMe,
+                        color = Color.White.copy(
+                            alpha = 0.7f
+                        ),
+                        fontSize = 12.sp
+                    )
+                }
+
+                TextButton(
+                    onClick = {}
+                ) {
+
+                    Text(
+                        text = strings.forgot,
+                        color = Color.White.copy(
+                            alpha = 0.5f
+                        ),
+                        fontSize = 12.sp
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            SoulButton(text = strings.login, onClick = onLoginClick, modifier = Modifier.fillMaxWidth())
+
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            SoulButton(
+                text = strings.login,
+                onClick = onLoginClick,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
+
 @Composable
-private fun SocialLoginSection(strings: LoginStrings) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = strings.orLoginWith, color = Color.White.copy(alpha = 0.3f), fontSize = 11.sp, letterSpacing = 1.sp)
-        Spacer(modifier = Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            SocialCircleIcon(R.drawable.soul_logo, Color.White)
-            SocialCircleIcon(R.drawable.soul_logo, Color(0xFF07C160))
+private fun SocialLoginSection(
+    strings: LoginStrings
+) {
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Text(
+            text = strings.orLoginWith,
+            color = Color.White.copy(
+                alpha = 0.3f
+            ),
+            fontSize = 11.sp,
+            letterSpacing = 1.sp
+        )
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(
+                24.dp
+            )
+        ) {
+
+            SocialCircleIcon(
+                R.drawable.soul_logo,
+                Color.White
+            )
+
+            SocialCircleIcon(
+                R.drawable.soul_logo,
+                Color(0xFF07C160)
+            )
         }
     }
 }
