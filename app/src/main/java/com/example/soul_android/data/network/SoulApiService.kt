@@ -52,8 +52,8 @@ data class MatchUserResponse(
     val gender: String?,
     val nationality: String?,
     val avatar: String?,
-    val skillOffer: String?, // 改为 String? 适配后端数据库存储格式
-    val skillWant: String?,  // 改为 String? 适配后端数据库存储格式
+    val skillOffer: String?, 
+    val skillWant: String?,  
     val averageRating: Double?
 )
 
@@ -61,7 +61,7 @@ data class MatchHistoryResponse(
     val id: Long,
     val name: String,
     val avatar: String?,
-    val matchTime: String? // 后端 LocalDateTime 默认转 String
+    val matchTime: String?
 )
 
 data class UserMatchProfileResponse(
@@ -78,19 +78,19 @@ data class UserMatchProfileResponse(
     val histories: List<MatchHistoryResponse>
 )
 
-// --- Chat DTOs ---
-data class ChatMessageResponse(
-    val id: String,
-    val senderId: String,
-    val receiverId: String,
-    val content: String,
-    val timestamp: Long,
-    val isRead: Boolean
+// --- Chat DTOs (Matched with backend ChatController.java) ---
+data class ChatSendRequest(
+    val senderUsername: String,
+    val receiverUsername: String,
+    val content: String
 )
 
-data class SendMessageRequest(
-    val receiverId: String,
-    val content: String
+data class BackendChatMessage(
+    val id: Long?,
+    val senderUsername: String,
+    val receiverUsername: String,
+    val content: String,
+    val createdAt: String?
 )
 
 interface SoulApiService {
@@ -117,12 +117,21 @@ interface SoulApiService {
         @Query("limit") limit: Int = 12
     ): List<MatchUserResponse>
 
-    // --- Chat APIs (对应您的 ChatController.java) ---
-    @GET("api/chat/messages/{userId}")
-    suspend fun getChatMessages(@Path("userId") otherUserId: String): List<ChatMessageResponse>
+    // --- Chat APIs (Matched 1:1 with backend ChatController.java) ---
+    @GET("api/chat/rooms")
+    suspend fun getChatRooms(@Query("username") username: String): List<Map<String, Any>>
+
+    @POST("api/chat/direct")
+    suspend fun createDirectChatRoom(@Body request: ChatSendRequest): retrofit2.Response<Map<String, Any>>
+
+    @GET("api/chat/messages")
+    suspend fun getChatMessages(
+        @Query("me") me: String,
+        @Query("partner") partner: String
+    ): List<BackendChatMessage>
 
     @POST("api/chat/send")
-    suspend fun sendMessage(@Body request: SendMessageRequest): retrofit2.Response<ChatMessageResponse>
+    suspend fun sendMessage(@Body request: ChatSendRequest): retrofit2.Response<Map<String, Any>>
 
     // --- AI Guide API ---
     @GET("api/ai/guide")

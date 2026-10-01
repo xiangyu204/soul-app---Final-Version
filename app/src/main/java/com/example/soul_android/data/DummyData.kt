@@ -14,7 +14,7 @@ object DummyData {
         learnSkills = listOf("Python", "Design")
     )
 
-    val users = listOf(
+    var users = listOf(
         User(id = "sarah", name = "Sarah", bio = "English native speaker", languages = listOf("English"), teachSkills = listOf("영어"), learnSkills = listOf("한국어"), matchRate = 95, isOnline = true),
         User(id = "chen", name = "Chen", bio = "Software engineer", languages = listOf("Chinese"), teachSkills = listOf("중국어"), learnSkills = listOf("영어"), matchRate = 88, isOnline = false),
         User(id = "alex", name = "Alex", bio = "Professional coder", languages = listOf("English"), teachSkills = listOf("Python"), learnSkills = listOf("디자인"), matchRate = 82, isOnline = true),
@@ -27,6 +27,13 @@ object DummyData {
         User(id = "ryan", name = "Ryan", bio = "Fitness coach", languages = listOf("English"), teachSkills = listOf("Gym"), learnSkills = listOf("Chinese"), matchRate = 83, isOnline = true),
         User(id = "jiwon", name = "Jiwon", bio = "Game developer", languages = listOf("Korean"), teachSkills = listOf("Unity"), learnSkills = listOf("Music"), matchRate = 94, isOnline = true),
         User(id = "emma", name = "Emma", bio = "Book worm", languages = listOf("English"), teachSkills = listOf("Literature"), learnSkills = listOf("German"), matchRate = 77, isOnline = true)
+    )
+
+    val activeChatUsers = mutableListOf<User>(
+        User(id = "究极魔丸", name = "究极魔丸", bio = "안녕하세요!", languages = listOf("Korean"), teachSkills = listOf("Python"), learnSkills = listOf("Java"), matchRate = 95, isOnline = true),
+        User(id = "오태양", name = "오태양", bio = "반갑습니다!", languages = listOf("Korean"), teachSkills = listOf("Java"), learnSkills = listOf("Python"), matchRate = 90, isOnline = true),
+        User(id = "박하늘", name = "박하늘", bio = "열심히 공부해요!", languages = listOf("Korean"), teachSkills = listOf("Spring"), learnSkills = listOf("React"), matchRate = 88, isOnline = true),
+        User(id = "huangjinghao", name = "huangjinghao", bio = "你好！", languages = listOf("Chinese"), teachSkills = listOf("Chinese"), learnSkills = listOf("English"), matchRate = 85, isOnline = true)
     )
 
     val matchRequests = listOf(

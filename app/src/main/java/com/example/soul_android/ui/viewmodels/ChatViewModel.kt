@@ -2,12 +2,12 @@ package com.example.soul_android.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.soul_android.data.network.ChatMessageResponse
-import com.example.soul_android.data.network.SendMessageRequest
+import com.example.soul_android.data.DummyData
+import com.example.soul_android.data.network.ChatSendRequest
 import com.example.soul_android.data.network.SoulApiService
 import com.example.soul_android.models.Message
+import com.example.soul_android.models.User
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -27,26 +27,48 @@ class ChatViewModel(
 
     private val _messages = MutableStateFlow<List<Message>>(listOf())
 
-    fun fetchMessages(otherUserId: String) {
+    fun fetchMessages(otherUserId: String, currentUsername: String = "xiangyu") {
         viewModelScope.launch {
             _uiState.value = ChatUiState.Loading
+            
+            // Track active chat user in DummyData so it shows in ChatListScreen
+            val activeUser = DummyData.users.find { it.id == otherUserId } 
+                ?: DummyData.activeChatUsers.find { it.id == otherUserId } 
+                ?: User(id = otherUserId, name = otherUserId)
+            if (DummyData.activeChatUsers.none { it.id == otherUserId }) {
+                DummyData.activeChatUsers.add(0, activeUser)
+            }
+
             try {
-                val responses = apiService.getChatMessages(otherUserId)
+                // 1. 自动在后端创建/获取直聊聊天室
+                try {
+                    apiService.createDirectChatRoom(
+                        ChatSendRequest(
+                            senderUsername = currentUsername,
+                            receiverUsername = otherUserId,
+                            content = ""
+                        )
+                    )
+                } catch (e: Exception) {
+                    // 忽略创建失败
+                }
+
+                // 2. 获取聊天记录
+                val responses = apiService.getChatMessages(me = currentUsername, partner = otherUserId)
                 val mappedMessages = responses.map { resp ->
                     Message(
-                        id = resp.id,
-                        senderId = resp.senderId,
+                        id = resp.id?.toString() ?: java.util.UUID.randomUUID().toString(),
+                        senderId = resp.senderUsername,
                         text = resp.content,
-                        timestamp = resp.timestamp,
-                        isMe = resp.senderId != otherUserId
+                        timestamp = System.currentTimeMillis(),
+                        isMe = resp.senderUsername == currentUsername
                     )
                 }
                 _messages.value = mappedMessages
                 _uiState.value = ChatUiState.Success(mappedMessages)
             } catch (e: Exception) {
-                // Ensure chat partner matches the selected userId dynamically
-                val userObj = com.example.soul_android.data.DummyData.users.find { it.id == otherUserId }
-                val userName = userObj?.name ?: otherUserId
+                // Fallback dummy messages if backend is offline or room doesn't exist yet
+                val userName = activeUser.name
                 val fallbackMessages = listOf(
                     Message("1", otherUserId, "안녕하세요! $userName 입니다. 만나서 반가워요! 😊", System.currentTimeMillis() - 3600000, false),
                     Message("2", "me", "안녕하세요! 반갑습니다. 서로 스킬 교환 잘 해봐요.", System.currentTimeMillis() - 3000000, true),
@@ -58,44 +80,38 @@ class ChatViewModel(
         }
     }
 
-    fun sendMessage(receiverId: String, content: String) {
+    fun sendMessage(receiverId: String, content: String, currentUsername: String = "xiangyu") {
         if (content.isBlank()) return
 
         viewModelScope.launch {
-            // 1. 立即无阻塞地将用户消息上屏 (毫秒级响应)
+            // 1. 立即乐观更新 UI
             val tempId = java.util.UUID.randomUUID().toString()
             val tempMessage = Message(tempId, "me", content, System.currentTimeMillis(), true)
             val currentList = _messages.value + tempMessage
             _messages.value = currentList
             _uiState.value = ChatUiState.Success(currentList)
 
-            // 2. 后台异步尝试请求后端（防止因后端未完全就绪导致主线程卡顿等待）
+            // 2. 异步请求后端
             launch(Dispatchers.IO) {
                 try {
-                    apiService.sendMessage(SendMessageRequest(receiverId, content))
+                    apiService.createDirectChatRoom(
+                        ChatSendRequest(
+                            senderUsername = currentUsername,
+                            receiverUsername = receiverId,
+                            content = ""
+                        )
+                    )
+                    apiService.sendMessage(
+                        ChatSendRequest(
+                            senderUsername = currentUsername,
+                            receiverUsername = receiverId,
+                            content = content
+                        )
+                    )
                 } catch (e: Exception) {
-                    // 忽略离线或未实现接口时的网络异常
+                    // 忽略离线异常
                 }
             }
-
-            // 3. 1秒后模拟对方自动回复，保证聊天互动完整流畅
-            delay(1000)
-            val userObj = com.example.soul_android.data.DummyData.users.find { it.id == receiverId }
-            val userName = userObj?.name ?: receiverId
-
-            val replyText = when {
-                content.contains("java") || content.contains("자바") -> "저도 Java랑 Spring Boot에 관심이 많아요! 같이 공부해요! ☕"
-                content.contains("python") || content.contains("파이썬") -> "파이썬으로 데이터 분석이나 AI 공부하시나요? 멋지네요! 🐍"
-                content.contains("영어") || content.contains("english") -> "Sure! I'd love to practice English conversation with you. Let's do it!"
-                content.contains("안녕") || content.contains("hi") || content.contains("hello") -> "반가워요! 오늘 스킬 교환에 대해 더 이야기해 볼까요? 😊"
-                else -> "네, 좋은 말씀이네요! ($userName): '$content'에 대해 더 자세히 알려주세요!"
-            }
-
-            val replyId = java.util.UUID.randomUUID().toString()
-            val replyMessage = Message(replyId, receiverId, replyText, System.currentTimeMillis(), false)
-            val updatedList = _messages.value + replyMessage
-            _messages.value = updatedList
-            _uiState.value = ChatUiState.Success(updatedList)
         }
     }
 }

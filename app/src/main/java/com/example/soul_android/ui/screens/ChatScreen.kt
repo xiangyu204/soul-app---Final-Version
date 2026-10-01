@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soul_android.data.DummyData
 import com.example.soul_android.models.AppLanguage
@@ -72,12 +73,20 @@ fun ChatScreen(
         typing = "입력 중..."
     )
 
+    val context = LocalContext.current
+    val currentUsername = remember {
+        val prefs = context.getSharedPreferences("soul_login_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.getString("username", "")?.takeIf { it.isNotBlank() } 
+            ?: context.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE).getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: "xiangyu"
+    }
+
     val user = DummyData.users.find { it.id == userId } ?: com.example.soul_android.models.User(id = userId, name = userId)
     val uiState by chatViewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
 
-    LaunchedEffect(userId) {
-        chatViewModel.fetchMessages(userId)
+    LaunchedEffect(userId, currentUsername) {
+        chatViewModel.fetchMessages(userId, currentUsername)
     }
 
     val messages = if (uiState is ChatUiState.Success) {

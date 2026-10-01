@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,17 +49,25 @@ fun ProfileScreen(
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
 
+    val context = LocalContext.current
+    val currentUsername = remember {
+        val prefs = context.getSharedPreferences("soul_login_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.getString("username", "")?.takeIf { it.isNotBlank() } 
+            ?: context.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE).getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: "xiangyu"
+    }
+
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchProfile("xiangyu")
+    LaunchedEffect(currentUsername) {
+        viewModel.fetchProfile(currentUsername)
     }
 
     val strings = ProfileStrings(
         title = "개인정보 페이지",
         btnEdit = "정보 수정",
         btnHome = "홈",
-        btnLogout = "로그아웃",
+        logout = "로그아웃",
         labelId = "아이디",
         labelAge = "나이",
         labelGender = "성별",
@@ -98,91 +107,36 @@ fun ProfileScreen(
                     .padding(vertical = 32.dp)
             )
 
-            // Main Info Card - Using Project Standard GlassPanel
-            GlassPanel(
-                modifier = Modifier.padding(horizontal = 20.dp)
-            ) {
-                // Profile Header in Card
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        // Standard Soul Glow
-                        Box(modifier = Modifier.size(90.dp).blur(30.dp).background(SoulPurple.copy(alpha = 0.3f), CircleShape))
-                        Image(
-                            painter = painterResource(id = R.drawable.soul_logo), 
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(76.dp)
-                                .clip(CircleShape)
-                                .border(1.5.dp, SoulCyan.copy(alpha = 0.5f), CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(20.dp))
-                    Column {
-                        val user = (uiState as? ProfileUiState.Success)?.data
-                        Text(text = user?.name ?: "Loading...", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(text = "id:${user?.username ?: ""}", fontSize = 13.sp, color = SoulCyan.copy(alpha = 0.7f))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(text = strings.welcome, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+            when (val state = uiState) {
+                is ProfileUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = SoulCyan)
                     }
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                if (uiState is ProfileUiState.Success) {
-                    val user = (uiState as ProfileUiState.Success).data
-                    
-                    InfoRow(strings.labelId, user.username, strings.labelAge, user.age)
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    InfoRow(strings.labelGender, user.gender, strings.labelNationality, user.nationality)
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    InfoRow(strings.labelPhone, user.phone, "", "")
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    InfoRow(strings.labelEmail, user.email, "", "")
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    SkillInfoRow(strings.labelTeach, user.teachSkills.firstOrNull() ?: "-", user.skillOfferLevel)
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    SkillInfoRow(strings.labelLearn, user.learnSkills.firstOrNull() ?: "-", user.skillWantLevel)
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 14.dp))
-                    
-                    InfoRow(strings.labelTime, user.timeSlot, "", "")
+                is ProfileUiState.Success -> {
+                    val profile = state.data
+                    ProfileContent(profile, strings, onEditProfileClick, onSettingsClick, onLogoutClick)
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Standard Soul Buttons
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SoulButton(
-                        text = strings.btnEdit,
-                        onClick = onEditProfileClick,
-                        modifier = Modifier.weight(1f),
-                        containerColor = Color(0xFF4C6FFF)
+                is ProfileUiState.Error -> {
+                    val fallbackProfile = com.example.soul_android.ui.viewmodels.ProfileUiData(
+                        name = currentUsername,
+                        username = currentUsername,
+                        email = "$currentUsername@gmail.com",
+                        avatar = null,
+                        teachSkills = listOf("Java", "Spring"),
+                        learnSkills = listOf("Python", "AI"),
+                        rating = "★ 5.0",
+                        nationality = "Korea",
+                        age = "25",
+                        gender = "M",
+                        phone = "010-1234-5678",
+                        address = "Seoul",
+                        skillOfferLevel = "Advanced",
+                        skillWantLevel = "Intermediate",
+                        timeSlot = "평일 오전",
+                        projects = "-"
                     )
-                    
-                    Button(
-                        onClick = onNavigateToHome,
-                        modifier = Modifier.size(54.dp),
-                        shape = RoundedCornerShape(27.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Icon(Icons.Default.Home, null, tint = Color.White)
-                    }
-                    
-                    SoulButton(
-                        text = strings.btnLogout,
-                        onClick = onLogoutClick,
-                        modifier = Modifier.weight(1f),
-                        containerColor = Color(0xFFE53935)
-                    )
+                    ProfileContent(fallbackProfile, strings, onEditProfileClick, onSettingsClick, onLogoutClick)
                 }
             }
         }
@@ -190,51 +144,150 @@ fun ProfileScreen(
 }
 
 @Composable
-fun InfoRow(label1: String, value1: String, label2: String, value2: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = label1, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(70.dp))
-                Text(text = value1, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
-        if (label2.isNotEmpty()) {
-            Column(modifier = Modifier.weight(0.9f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = label2, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(40.dp))
-                    Text(text = value2, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SkillInfoRow(label: String, skill: String, level: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = label, fontSize = 13.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.width(100.dp))
-        Text(text = skill, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Spacer(modifier = Modifier.width(12.dp))
-        Surface(
-            color = SoulCyan.copy(alpha = 0.15f),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(0.5.dp, SoulCyan.copy(alpha = 0.3f))
+private fun ProfileContent(
+    profile: com.example.soul_android.ui.viewmodels.ProfileUiData,
+    strings: ProfileStrings,
+    onEditProfileClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Avatar Box
+        Box(
+            modifier = Modifier
+                .size(110.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(SoulCyan, SoulPurple)))
+                .border(2.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = level,
-                fontSize = 10.sp,
-                color = SoulCyan,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-            )
+            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(60.dp))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = profile.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(text = "id:${profile.username}", fontSize = 14.sp, color = SoulCyan)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = strings.welcome, fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Info Card
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+            color = Color.White.copy(alpha = 0.05f)
+        ) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    InfoItem(strings.labelId, profile.username)
+                    InfoItem(strings.labelAge, profile.age)
+                }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    InfoItem(strings.labelGender, profile.gender)
+                    InfoItem(strings.labelNationality, profile.nationality)
+                }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                InfoItem(strings.labelPhone, profile.phone)
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                InfoItem(strings.labelEmail, profile.email)
+                
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(strings.labelTeach, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        profile.teachSkills.forEach { skill ->
+                            Box(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(SoulCyan.copy(alpha = 0.15f)).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                Text(skill, color = SoulCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(strings.labelLearn, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        profile.learnSkills.forEach { skill ->
+                            Box(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(SoulPurple.copy(alpha = 0.15f)).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                Text(skill, color = Color(0xFFD0BCFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Action Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = onEditProfileClick,
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SoulPurple)
+            ) {
+                Text(strings.btnEdit, fontWeight = FontWeight.Bold)
+            }
+            
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.1f))
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
+            }
+
+            Button(
+                onClick = onLogoutClick,
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+            ) {
+                Text(strings.logout, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
-private data class ProfileStrings(
-    val title: String, val btnEdit: String, val btnHome: String, val btnLogout: String,
-    val labelId: String, val labelAge: String, val labelGender: String, val labelNationality: String,
-    val labelPhone: String, val labelEmail: String, val labelAddress: String,
-    val labelTeach: String, val labelLearn: String, val labelTime: String, val labelProjects: String,
+@Composable
+private fun InfoItem(label: String, value: String) {
+    Column {
+        Text(text = label, color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(text = value, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+data class ProfileStrings(
+    val title: String,
+    val btnEdit: String,
+    val btnHome: String,
+    val logout: String,
+    val labelId: String,
+    val labelAge: String,
+    val labelGender: String,
+    val labelNationality: String,
+    val labelPhone: String,
+    val labelEmail: String,
+    val labelAddress: String,
+    val labelTeach: String,
+    val labelLearn: String,
+    val labelTime: String,
+    val labelProjects: String,
     val welcome: String
 )
-

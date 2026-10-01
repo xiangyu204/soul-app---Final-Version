@@ -69,8 +69,8 @@ fun ExploreScreen(
         matchViewModel.findMatches(have = effectiveSearch ?: categoryFilter)
     }
 
-    val displayUsers = remember(matchState) {
-        if (matchState is MatchUiState.Success) {
+    val displayUsers = remember(matchState, selectedCategory, searchQuery) {
+        if (matchState is MatchUiState.Success && (matchState as MatchUiState.Success).users.isNotEmpty()) {
             (matchState as MatchUiState.Success).users.map { resp ->
                 User(
                     id = resp.username,
@@ -84,10 +84,24 @@ fun ExploreScreen(
                 )
             }
         } else {
-            // 如果还没加载出来数据，暂时用 Dummy 撑个场面，防止空屏
-            DummyData.users.filter { 
-                it.name.contains(searchQuery, ignoreCase = true) || it.teachSkills.any { s -> s.contains(searchQuery, ignoreCase = true) }
-            }
+            val category = strings.categories.getOrNull(selectedCategory) ?: "전체"
+            DummyData.users.filter { user ->
+                val matchesSearch = searchQuery.isBlank() || 
+                    user.name.contains(searchQuery, ignoreCase = true) || 
+                    user.teachSkills.any { s -> s.contains(searchQuery, ignoreCase = true) } ||
+                    user.learnSkills.any { s -> s.contains(searchQuery, ignoreCase = true) }
+
+                val matchesCategory = category == "전체" || when (category) {
+                    "언어" -> user.teachSkills.any { s -> s.contains("영어", true) || s.contains("중국어", true) || s.contains("한국어", true) } || user.languages.isNotEmpty()
+                    "프로그래밍" -> user.teachSkills.any { s -> s.contains("Java", true) || s.contains("Python", true) || s.contains("Spring", true) || s.contains("Unity", true) }
+                    "음악" -> user.teachSkills.any { s -> s.contains("Dance", true) || s.contains("Music", true) }
+                    "디자인" -> user.teachSkills.any { s -> s.contains("Design", true) || s.contains("디자인", true) || s.contains("Photo", true) }
+                    "스포츠" -> user.teachSkills.any { s -> s.contains("Gym", true) || s.contains("체육", true) }
+                    else -> true
+                }
+
+                matchesSearch && matchesCategory
+            }.ifEmpty { DummyData.users }
         }
     }
 
