@@ -66,6 +66,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.vertexai)
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Testing
     testImplementation(libs.junit)

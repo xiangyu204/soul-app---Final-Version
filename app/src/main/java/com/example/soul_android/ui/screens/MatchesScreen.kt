@@ -1,5 +1,6 @@
 package com.example.soul_android.ui.screens
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -23,16 +24,20 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.soul_android.data.DummyData
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.soul_android.data.network.MatchUserResponse
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.models.User
 import com.example.soul_android.ui.components.*
+import com.example.soul_android.ui.viewmodels.MatchUiState
+import com.example.soul_android.ui.viewmodels.MatchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,24 +49,54 @@ fun MatchesScreen(
     onNavigateToChat: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onReviewClick: (String) -> Unit = {},
-    matchViewModel: com.example.soul_android.ui.viewmodels.MatchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    matchViewModel: MatchViewModel = viewModel()
 ) {
     var language by remember { mutableStateOf(AppLanguage.KOREAN) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var showMatchDialog by remember { mutableStateOf(false) }
+    var lastMatchedUser by remember { mutableStateOf<User?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val currentUsername = remember(context) {
+        val soulPrefs = context.getSharedPreferences("soul_login_prefs", Context.MODE_PRIVATE)
+        val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        soulPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: userPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: ""
+    }
 
     val matchState by matchViewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        matchViewModel.findMatches()
+    LaunchedEffect(currentUsername) {
+        if (currentUsername.isNotBlank()) {
+            matchViewModel.findMatches(username = currentUsername)
+        }
     }
+
+    fun toUser(resp: MatchUserResponse): User = User(
+        id = resp.username,
+        name = resp.name,
+        bio = resp.nationality ?: "Soul User",
+        languages = emptyList(),
+        teachSkills = resp.skillOffer ?: emptyList(),
+        learnSkills = resp.skillWant ?: emptyList(),
+        matchRate = ((resp.averageRating ?: 4.0) * 20).toInt().coerceIn(0, 100),
+        isOnline = true
+    )
+
+    val recommendedUsers = (matchState as? MatchUiState.Success)
+        ?.recommendedUsers?.map(::toUser).orEmpty()
+    val myMatches = (matchState as? MatchUiState.Success)
+        ?.myMatches?.map(::toUser).orEmpty()
 
     val strings = MatchesStrings(
         title = "매칭",
-        receivedTab = "받은 요청",
+        receivedTab = "추천",
         myMatchesTab = "내 매칭",
-        accept = "수락",
-        reject = "거절",
+        accept = "매칭",
+        reject = "건너뛰기",
         chat = "채팅하기",
         teachPrefix = "교류 가능한 스킬",
         learnPrefix = "관심 스킬",
@@ -72,42 +107,11 @@ fun MatchesScreen(
         chatLabel = "채팅",
         profile = "프로필",
         acceptedMsg = "새로운 매칭이 탄생했습니다!",
-        rejectedMsg = "우주의 동평灵魂이 연결되었어요. 지금 바로 대화를 시작해보세요!"
+        rejectedMsg = "새로운 소울이 연결되었어요. 지금 바로 대화를 시작해보세요!"
     )
-
-    // 后端接口统一返回匹配列表，为了丰富界面呈现，我们将数据根据奇偶或评分等策略分配进“收到的请求”和“我的匹配”中
-    val allUsersFromBackend = remember(matchState) {
-        if (matchState is com.example.soul_android.ui.viewmodels.MatchUiState.Success) {
-            (matchState as com.example.soul_android.ui.viewmodels.MatchUiState.Success).users.map { resp ->
-                User(
-                    id = resp.username,
-                    name = resp.name,
-                    bio = resp.nationality ?: "Soul User",
-                    languages = listOf(),
-                    teachSkills = resp.skillOffer?.split(",")?.map { it.trim() } ?: listOf(),
-                    learnSkills = resp.skillWant?.split(",")?.map { it.trim() } ?: listOf(),
-                    matchRate = (resp.averageRating?.times(20) ?: 80.0).toInt(),
-                    isOnline = true
-                )
-            }
-        } else {
-            listOf()
-        }
-    }
-
-    var receivedRequests by remember(allUsersFromBackend) { 
-        mutableStateOf(allUsersFromBackend.take(allUsersFromBackend.size / 2 + 1).filter { it.id.isNotEmpty() }) 
-    }
-    var myMatches by remember(allUsersFromBackend) { 
-        mutableStateOf(allUsersFromBackend.drop(allUsersFromBackend.size / 2 + 1).filter { it.id.isNotEmpty() }) 
-    }
-    
-    var showMatchDialog by remember { mutableStateOf(false) }
-    var lastMatchedUser by remember { mutableStateOf<User?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackgroundGalaxy()
-
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
@@ -115,7 +119,12 @@ fun MatchesScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     title = { BrandingSection(title = strings.title, subtitle = "Your Connections", titleSize = 20) },
                     actions = {
-                        LanguageSelector(currentLanguage = language, expanded = languageMenuExpanded, onExpandedChange = { languageMenuExpanded = it }, onLanguageSelected = { language = it })
+                        LanguageSelector(
+                            currentLanguage = language,
+                            expanded = languageMenuExpanded,
+                            onExpandedChange = { languageMenuExpanded = it },
+                            onLanguageSelected = { language = it; languageMenuExpanded = false }
+                        )
                     }
                 )
             },
@@ -130,35 +139,73 @@ fun MatchesScreen(
                     contentColor = MaterialTheme.colorScheme.primary,
                     divider = {},
                     indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]), color = MaterialTheme.colorScheme.primary)
+                        TabRowDefaults.SecondaryIndicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 ) {
-                    Tab(selected = selectedTabIndex == 0, onClick = { selectedTabIndex = 0 }, text = { Text(strings.receivedTab, fontWeight = if(selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal, color = if(selectedTabIndex == 0) Color.White else Color.White.copy(alpha = 0.5f)) })
-                    Tab(selected = selectedTabIndex == 1, onClick = { selectedTabIndex = 1 }, text = { Text(strings.myMatchesTab, fontWeight = if(selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal, color = if(selectedTabIndex == 1) Color.White else Color.White.copy(alpha = 0.5f)) })
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { selectedTabIndex = 0 },
+                        text = { Text(strings.receivedTab, fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == 0) Color.White else Color.White.copy(alpha = 0.5f)) }
+                    )
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = { selectedTabIndex = 1 },
+                        text = { Text(strings.myMatchesTab, fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == 1) Color.White else Color.White.copy(alpha = 0.5f)) }
+                    )
                 }
 
-                if (selectedTabIndex == 0) {
-                    if (receivedRequests.isEmpty()) {
-                        MatchEmptyState(if(language == AppLanguage.CHINESE) "暂无收到的匹配请求" else if(language == AppLanguage.ENGLISH) "No received requests yet" else "받은 요청이 없습니다")
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(receivedRequests, key = { it.id }) { user ->
-                                ReceivedRequestCard(user, strings, onUserClick, onAccept = {
-                                    lastMatchedUser = user
-                                    receivedRequests = receivedRequests.filter { it.id != user.id }
-                                    myMatches = myMatches + user
-                                    showMatchDialog = true
-                                }, onReject = { receivedRequests = receivedRequests.filter { it.id != user.id } })
-                            }
-                        }
+                when (val state = matchState) {
+                    MatchUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF00D0D9))
                     }
-                } else {
-                    if (myMatches.isEmpty()) {
-                        MatchEmptyState(if(language == AppLanguage.CHINESE) "宇宙深处空空如也，快去探索吧" else if(language == AppLanguage.ENGLISH) "The universe is empty, go explore!" else "매칭된 소울러가 없습니다")
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(myMatches, key = { it.id }) { user ->
-                                MyMatchCard(user, strings, onUserClick, onChatClick, onReviewClick)
+                    is MatchUiState.Error -> MatchEmptyState(state.message)
+                    is MatchUiState.Success -> {
+                        if (selectedTabIndex == 0) {
+                            if (recommendedUsers.isEmpty()) {
+                                MatchEmptyState(if (language == AppLanguage.CHINESE) "暂无推荐用户" else if (language == AppLanguage.ENGLISH) "No recommendations yet" else "추천할 사용자가 없습니다")
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                                    contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(recommendedUsers, key = { it.id }) { user ->
+                                        ReceivedRequestCard(
+                                            user = user,
+                                            strings = strings,
+                                            onUserClick = onUserClick,
+                                            onAccept = {
+                                                matchViewModel.acceptMatch(
+                                                    currentUsername = currentUsername,
+                                                    targetUsername = user.id,
+                                                    onSuccess = {
+                                                        lastMatchedUser = user
+                                                        showMatchDialog = true
+                                                    },
+                                                    onError = { errorMessage = it }
+                                                )
+                                            },
+                                            onReject = { matchViewModel.rejectLocally(user.id) }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            if (myMatches.isEmpty()) {
+                                MatchEmptyState(if (language == AppLanguage.CHINESE) "暂无已匹配用户" else if (language == AppLanguage.ENGLISH) "No matches yet" else "매칭된 소울러가 없습니다")
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                                    contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(myMatches, key = { it.id }) { user ->
+                                        MyMatchCard(user, strings, onUserClick, onChatClick, onReviewClick)
+                                    }
+                                }
                             }
                         }
                     }
@@ -175,6 +222,15 @@ fun MatchesScreen(
                     showMatchDialog = false
                     onChatClick(it)
                 }
+            )
+        }
+
+        if (errorMessage != null) {
+            AlertDialog(
+                onDismissRequest = { errorMessage = null },
+                title = { Text("매칭 실패") },
+                text = { Text(errorMessage.orEmpty()) },
+                confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("확인") } }
             )
         }
     }
@@ -255,7 +311,7 @@ private fun ReceivedRequestCard(user: User, strings: MatchesStrings, onUserClick
                     Text(user.bio, fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f), maxLines = 1)
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
             Spacer(modifier = Modifier.height(14.dp))
@@ -350,7 +406,7 @@ private fun ItsAMatchDialog(
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.88f)).clickable { onDismiss() }, contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp).clickable(enabled = false) {}) {
-                
+
                 // Animated Match Heart / Icon
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp).scale(glowScale)) {
                     Box(modifier = Modifier.size(140.dp).blur(30.dp).background(Color(0xFF00D0D9).copy(alpha = 0.25f), CircleShape))
@@ -362,9 +418,9 @@ private fun ItsAMatchDialog(
                 Text(text = strings.acceptedMsg, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(text = strings.rejectedMsg, fontSize = 14.sp, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
-                
+
                 Spacer(modifier = Modifier.height(40.dp))
-                
+
                 // Avatar connection graphic
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Box(modifier = Modifier.size(72.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)).border(2.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
@@ -378,7 +434,7 @@ private fun ItsAMatchDialog(
                 Text(user.name, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(top = 12.dp))
 
                 Spacer(modifier = Modifier.height(48.dp))
-                
+
                 Button(
                     onClick = { onChatClick(user.id) },
                     modifier = Modifier.fillMaxWidth().height(54.dp),

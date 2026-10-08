@@ -1,32 +1,82 @@
 package com.example.soul_android.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.foundation.*
+import android.content.Context
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.soul_android.data.DummyData
+
 import com.example.soul_android.models.AppLanguage
 import com.example.soul_android.models.User
-import com.example.soul_android.ui.components.*
+
+import com.example.soul_android.ui.components.BackgroundGalaxy
+import com.example.soul_android.ui.components.BrandingSection
+import com.example.soul_android.ui.components.LanguageSelector
+import com.example.soul_android.ui.components.SoulTextField
+
 import com.example.soul_android.ui.viewmodels.MatchUiState
 import com.example.soul_android.ui.viewmodels.MatchViewModel
 
@@ -47,6 +97,15 @@ fun ExploreScreen(
 
     val matchState by matchViewModel.uiState.collectAsState()
 
+    val context = LocalContext.current
+    val currentUsername = remember(context) {
+        val soulPrefs = context.getSharedPreferences("soul_login_prefs", Context.MODE_PRIVATE)
+        val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        soulPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: userPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: ""
+    }
+
     val strings = ExploreStrings(
         title = "탐색",
         searchPlaceholder = "스킬 또는 사용자 검색",
@@ -61,49 +120,330 @@ fun ExploreScreen(
         profile = "프로필"
     )
 
-    // 监听搜索词和分类的变化，实时向后端发起请求
-    LaunchedEffect(searchQuery, selectedCategory) {
-        val categoryFilter = if (selectedCategory == 0) null else strings.categories[selectedCategory]
-        val effectiveSearch = searchQuery.ifBlank { null }
-        // 我们以“所搜即所求”为逻辑，搜索词作为 haveSkill 或 wantSkill 传入
-        matchViewModel.findMatches(have = effectiveSearch ?: categoryFilter)
-    }
+    // 监听搜索词和分类变化，使用真实登录用户请求后端
+    LaunchedEffect(currentUsername) {
 
-    val displayUsers = remember(matchState, selectedCategory, searchQuery) {
-        if (matchState is MatchUiState.Success && (matchState as MatchUiState.Success).users.isNotEmpty()) {
-            (matchState as MatchUiState.Success).users.map { resp ->
-                User(
-                    id = resp.username,
-                    name = resp.name,
-                    bio = resp.nationality ?: "",
-                    languages = listOf(),
-                    teachSkills = resp.skillOffer?.split(",")?.map { it.trim() } ?: listOf(),
-                    learnSkills = resp.skillWant?.split(",")?.map { it.trim() } ?: listOf(),
-                    matchRate = (resp.averageRating?.times(20) ?: 80.0).toInt(),
-                    isOnline = true
-                )
-            }
-        } else {
-            val category = strings.categories.getOrNull(selectedCategory) ?: "전체"
-            DummyData.users.filter { user ->
-                val matchesSearch = searchQuery.isBlank() || 
-                    user.name.contains(searchQuery, ignoreCase = true) || 
-                    user.teachSkills.any { s -> s.contains(searchQuery, ignoreCase = true) } ||
-                    user.learnSkills.any { s -> s.contains(searchQuery, ignoreCase = true) }
-
-                val matchesCategory = category == "전체" || when (category) {
-                    "언어" -> user.teachSkills.any { s -> s.contains("영어", true) || s.contains("중국어", true) || s.contains("한국어", true) } || user.languages.isNotEmpty()
-                    "프로그래밍" -> user.teachSkills.any { s -> s.contains("Java", true) || s.contains("Python", true) || s.contains("Spring", true) || s.contains("Unity", true) }
-                    "음악" -> user.teachSkills.any { s -> s.contains("Dance", true) || s.contains("Music", true) }
-                    "디자인" -> user.teachSkills.any { s -> s.contains("Design", true) || s.contains("디자인", true) || s.contains("Photo", true) }
-                    "스포츠" -> user.teachSkills.any { s -> s.contains("Gym", true) || s.contains("체육", true) }
-                    else -> true
-                }
-
-                matchesSearch && matchesCategory
-            }.ifEmpty { DummyData.users }
+        if (currentUsername.isBlank()) {
+            return@LaunchedEffect
         }
+
+        // 只从后端获取当前用户可推荐的全部用户
+        // 不把 “언어 / 프로그래밍” 这种大分类发给后端
+        matchViewModel.findMatches(
+            username = currentUsername
+        )
     }
+
+    val displayUsers =
+        remember(
+            matchState,
+            searchQuery,
+            selectedCategory
+        ) {
+
+            val state = matchState
+
+            if (state !is MatchUiState.Success) {
+
+                emptyList()
+
+            } else {
+
+                // =================================================
+                // 后端数据 -> User
+                // =================================================
+
+                val allUsers =
+                    state.recommendedUsers.map { resp ->
+
+                        User(
+                            id = resp.username,
+                            name = resp.name,
+                            bio = resp.nationality ?: "",
+                            languages = emptyList(),
+
+                            teachSkills =
+                                resp.skillOffer ?: emptyList(),
+
+                            learnSkills =
+                                resp.skillWant ?: emptyList(),
+
+                            matchRate =
+                                ((resp.averageRating ?: 4.0) * 20)
+                                    .toInt()
+                                    .coerceIn(
+                                        0,
+                                        100
+                                    ),
+
+                            isOnline = true
+                        )
+                    }
+
+
+                // =================================================
+                // 搜索
+                // =================================================
+
+                val keyword =
+                    searchQuery
+                        .trim()
+                        .lowercase()
+
+
+                val searchedUsers =
+                    if (keyword.isBlank()) {
+
+                        allUsers
+
+                    } else {
+
+                        allUsers.filter { user ->
+
+                            user.name
+                                .lowercase()
+                                .contains(keyword)
+
+                                    ||
+
+                                    user.id
+                                        .lowercase()
+                                        .contains(keyword)
+
+                                    ||
+
+                                    user.teachSkills.any { skill ->
+                                        skill
+                                            .lowercase()
+                                            .contains(keyword)
+                                    }
+
+                                    ||
+
+                                    user.learnSkills.any { skill ->
+                                        skill
+                                            .lowercase()
+                                            .contains(keyword)
+                                    }
+                        }
+                    }
+
+
+                // =================================================
+                // 分类
+                // =================================================
+
+                when (selectedCategory) {
+
+                    // 전체
+                    0 -> searchedUsers
+
+
+                    // 언어
+                    1 -> {
+
+                        searchedUsers.filter { user ->
+
+                            val skills =
+                                (
+                                        user.teachSkills +
+                                                user.learnSkills
+                                        )
+                                    .joinToString(" ")
+                                    .lowercase()
+
+
+                            listOf(
+                                "english",
+                                "korean",
+                                "chinese",
+                                "japanese",
+                                "french",
+                                "spanish",
+                                "영어",
+                                "한국어",
+                                "중국어",
+                                "일본어",
+                                "프랑스어",
+                                "스페인어",
+                                "英语",
+                                "韩语",
+                                "中文",
+                                "日语",
+                                "法语",
+                                "西班牙语"
+                            ).any { word ->
+
+                                skills.contains(
+                                    word.lowercase()
+                                )
+                            }
+                        }
+                    }
+
+
+                    // 프로그래밍
+                    2 -> {
+
+                        searchedUsers.filter { user ->
+
+                            val skills =
+                                (
+                                        user.teachSkills +
+                                                user.learnSkills
+                                        )
+                                    .joinToString(" ")
+                                    .lowercase()
+
+
+                            listOf(
+                                "java",
+                                "kotlin",
+                                "python",
+                                "javascript",
+                                "typescript",
+                                "react",
+                                "vue",
+                                "spring",
+                                "spring boot",
+                                "android",
+                                "sql",
+                                "html",
+                                "css",
+                                "c++",
+                                "c#",
+                                "프로그래밍",
+                                "개발",
+                                "编程"
+                            ).any { word ->
+
+                                skills.contains(
+                                    word.lowercase()
+                                )
+                            }
+                        }
+                    }
+
+
+                    // 음악
+                    3 -> {
+
+                        searchedUsers.filter { user ->
+
+                            val skills =
+                                (
+                                        user.teachSkills +
+                                                user.learnSkills
+                                        )
+                                    .joinToString(" ")
+                                    .lowercase()
+
+
+                            listOf(
+                                "music",
+                                "guitar",
+                                "piano",
+                                "sing",
+                                "singing",
+                                "음악",
+                                "기타",
+                                "피아노",
+                                "노래",
+                                "音乐",
+                                "吉他",
+                                "钢琴",
+                                "唱歌"
+                            ).any { word ->
+
+                                skills.contains(
+                                    word.lowercase()
+                                )
+                            }
+                        }
+                    }
+
+
+                    // 디자인
+                    4 -> {
+
+                        searchedUsers.filter { user ->
+
+                            val skills =
+                                (
+                                        user.teachSkills +
+                                                user.learnSkills
+                                        )
+                                    .joinToString(" ")
+                                    .lowercase()
+
+
+                            listOf(
+                                "design",
+                                "ui",
+                                "ux",
+                                "figma",
+                                "photoshop",
+                                "illustrator",
+                                "디자인",
+                                "设计"
+                            ).any { word ->
+
+                                skills.contains(
+                                    word.lowercase()
+                                )
+                            }
+                        }
+                    }
+
+
+                    // 스포츠
+                    5 -> {
+
+                        searchedUsers.filter { user ->
+
+                            val skills =
+                                (
+                                        user.teachSkills +
+                                                user.learnSkills
+                                        )
+                                    .joinToString(" ")
+                                    .lowercase()
+
+
+                            listOf(
+                                "sport",
+                                "fitness",
+                                "football",
+                                "soccer",
+                                "basketball",
+                                "tennis",
+                                "baseball",
+                                "스포츠",
+                                "운동",
+                                "축구",
+                                "농구",
+                                "테니스",
+                                "야구",
+                                "体育",
+                                "运动",
+                                "足球",
+                                "篮球",
+                                "网球"
+                            ).any { word ->
+
+                                skills.contains(
+                                    word.lowercase()
+                                )
+                            }
+                        }
+                    }
+
+
+                    // 기타
+                    else -> searchedUsers
+                }
+            }
+        }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackgroundGalaxy()
@@ -229,9 +569,9 @@ private fun UserExploreCard(user: User, strings: ExploreStrings, onUserClick: (S
                         Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(Color(0xFF4CAF50)).border(2.dp, Color(0xFF1C1F26), CircleShape))
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.width(16.dp))
-                
+
                 Column(modifier = Modifier.weight(1f)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(user.name, fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
@@ -242,9 +582,9 @@ private fun UserExploreCard(user: User, strings: ExploreStrings, onUserClick: (S
                     Text(user.bio, fontSize = 14.sp, color = Color.White.copy(alpha = 0.5f), maxLines = 1)
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Professional Skills Presentation
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 user.teachSkills.take(3).forEach { skill ->
@@ -258,9 +598,9 @@ private fun UserExploreCard(user: User, strings: ExploreStrings, onUserClick: (S
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // View Profile indicator
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 Text(text = strings.viewProfile, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -298,7 +638,7 @@ fun CosmicWishRow(onWishClick: (String) -> Unit) {
             color = Color.White,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
         )
-        
+
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(horizontal = 20.dp)

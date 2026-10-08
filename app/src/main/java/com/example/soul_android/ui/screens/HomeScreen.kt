@@ -1,5 +1,6 @@
 package com.example.soul_android.ui.screens
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -65,43 +66,47 @@ fun HomeScreen(
     var languageMenuExpanded by remember { mutableStateOf(false) }
     var isMatchingAnimationByButton by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    
+
     val matchState by matchViewModel.uiState.collectAsState()
     val profileState by profileViewModel.uiState.collectAsState()
-    
-    // 将后端获取到的真实用户数据映射为 UI 渲染所需的 User 列表
+
+    // 将后端真实推荐用户映射为 UI User。技能字段必须做 null 兜底，避免后端脏数据导致 NPE。
     val usersFromBackend = remember(matchState) {
-        if (matchState is MatchUiState.Success) {
-            (matchState as MatchUiState.Success).users.map { resp ->
+        val state = matchState
+        if (state is MatchUiState.Success) {
+            state.recommendedUsers.map { resp ->
                 User(
                     id = resp.username,
                     name = resp.name,
                     bio = resp.nationality ?: "",
-                    languages = listOf(),
-                    teachSkills = resp.skillOffer?.split(",")?.map { it.trim() } ?: listOf(),
-                    learnSkills = resp.skillWant?.split(",")?.map { it.trim() } ?: listOf(),
-                    matchRate = (resp.averageRating?.times(20) ?: 80.0).toInt(),
+                    languages = emptyList(),
+                    teachSkills = resp.skillOffer ?: emptyList(),
+                    learnSkills = resp.skillWant ?: emptyList(),
+                    matchRate = ((resp.averageRating ?: 4.0) * 20).toInt().coerceIn(0, 100),
                     isOnline = true
                 )
             }
         } else {
-            listOf()
+            emptyList()
         }
     }
-    
+
     val context = LocalContext.current
-    val currentUsername = remember {
-        val prefs = context.getSharedPreferences("soul_login_prefs", android.content.Context.MODE_PRIVATE)
-        prefs.getString("username", "")?.takeIf { it.isNotBlank() } 
-            ?: context.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE).getString("username", "")?.takeIf { it.isNotBlank() }
-            ?: "xiangyu"
+    val currentUsername = remember(context) {
+        val soulPrefs = context.getSharedPreferences("soul_login_prefs", Context.MODE_PRIVATE)
+        val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        soulPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: userPrefs.getString("username", "")?.takeIf { it.isNotBlank() }
+            ?: ""
     }
-    
-    LaunchedEffect(Unit) {
-        matchViewModel.findMatches()
-        profileViewModel.fetchProfile(currentUsername)
+
+    LaunchedEffect(currentUsername) {
+        if (currentUsername.isNotBlank()) {
+            matchViewModel.findMatches(username = currentUsername)
+            profileViewModel.fetchProfile(currentUsername)
+        }
     }
-    
+
     val displayName = (profileState as? ProfileUiState.Success)?.data?.name ?: "User"
     val strings = HomeStrings(
         welcome = "안녕하세요, ${displayName}님!",
@@ -135,7 +140,7 @@ fun HomeScreen(
                             contentScale = ContentScale.Fit
                         )
                     }
-                    
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -174,7 +179,7 @@ fun HomeScreen(
                     SectionHeader(title = "온라인 소울러")
                     Spacer(modifier = Modifier.height(16.dp))
                     Planet3D(
-                        users = if (usersFromBackend.isNotEmpty()) usersFromBackend else DummyData.users, 
+                        users = usersFromBackend,
                         onUserClick = onUserClick
                     )
                 }
@@ -192,7 +197,7 @@ fun HomeScreen(
                                     delay(2800) // 动效维持2.8秒，充满探索期待感
                                     isMatchingAnimationByButton = false
                                     // 随机挑选宇宙中的一个同频者直接配对路由
-                                    val randomUser = DummyData.users.randomOrNull()
+                                    val randomUser = usersFromBackend.randomOrNull()
                                     if (randomUser != null) {
                                         onUserClick(randomUser.id)
                                     }
@@ -238,7 +243,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     LearningStatusCard()
                 }
-                
+
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
@@ -256,7 +261,7 @@ fun HomeScreen(
 @Composable
 fun FullScreenRadarOverlay(statusText: String) {
     val infiniteTransition = rememberInfiniteTransition(label = "quantum_radar")
-    
+
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f, targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)), label = "deg"
@@ -282,7 +287,7 @@ fun FullScreenRadarOverlay(statusText: String) {
                 // 脉冲波形扩散
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(color = Color(0xFF00D0D9), radius = (size.minDimension / 2) * scale1, alpha = alpha1, style = Stroke(2.dp.toPx()))
-                    
+
                     // 雷达扫描线
                     drawArc(
                         brush = Brush.sweepGradient(
@@ -292,12 +297,12 @@ fun FullScreenRadarOverlay(statusText: String) {
                         sweepAngle = 90f,
                         useCenter = true
                     )
-                    
+
                     // 同轴刻度环
                     drawCircle(color = Color.White.copy(alpha = 0.08f), radius = size.minDimension / 2, style = Stroke(1.dp.toPx()))
                     drawCircle(color = Color.White.copy(alpha = 0.05f), radius = size.minDimension / 3, style = Stroke(1.dp.toPx()))
                 }
-                
+
                 // 核心悬浮发光晶体
                 Box(
                     modifier = Modifier
@@ -314,7 +319,7 @@ fun FullScreenRadarOverlay(statusText: String) {
                     Icon(Icons.Default.Language, null, tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(40.dp))
             Text(
                 text = statusText,
@@ -365,7 +370,7 @@ fun Planet3D(users: List<User>, onUserClick: (String) -> Unit) {
             val centerX = size.width / 2f
             val centerY = size.height / 2f
             val planetRadius = 90f
-            
+
             // 增强后的星球发光
             drawCircle(
                 brush = Brush.radialGradient(
@@ -396,7 +401,7 @@ fun Planet3D(users: List<User>, onUserClick: (String) -> Unit) {
                 val baseAngle = 360f / users.size * index
                 val angle = baseAngle + rotation + dragRotation
                 val radians = Math.toRadians(angle.toDouble())
-                
+
                 // 多轨道精细分布
                 val orbitRadius = if (index % 3 == 0) 115f else if (index % 3 == 1) 140f else 160f
                 val x = cos(radians).toFloat() * orbitRadius
@@ -412,7 +417,7 @@ fun Planet3D(users: List<User>, onUserClick: (String) -> Unit) {
                 } else {
                     Brush.linearGradient(colors = listOf(Color(0xFF00D0D9), Color(0xFF7E57C2))) // 标准星空蓝紫色
                 }
-                
+
                 val borderColor = if (isTopMatch) Color(0xFFFF4081).copy(alpha = 0.6f) else Color.White.copy(alpha = 0.3f)
                 val borderThickness = if (isTopMatch) 2.dp else 1.2.dp
 
